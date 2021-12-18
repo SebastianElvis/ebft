@@ -37,3 +37,10 @@ _testmain.go
 profile.tmp
 profile.cov
 .DS_Store
+
+# Binaries
+btcd
+btcctl
+addblock
+findcheckpoint
+gencerts
