@@ -6,3 +6,5 @@ We use the following configuration for experiments.
 
 - rpcuser: `USER`
 - rpcpass: `PASS`
+
+TODO: replace all command lines with configuration files `btcd.conf` and `btcwallet.conf`.
