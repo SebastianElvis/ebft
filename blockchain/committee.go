@@ -52,6 +52,7 @@ func (b *BlockChain) Committee(n int32) ([]btcutil.Address, error) {
 		}
 		// append addr
 		committee = append(committee, addr)
+		// TODO test
 	}
 	return committee, nil
 }
