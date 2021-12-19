@@ -254,6 +254,11 @@ type server struct {
 	// agentWhitelist is a list of whitelisted user agent substrings, no
 	// whitelisting will be applied if the list is empty or nil.
 	agentWhitelist []string
+
+	// committeeAddrs contains the addresses of a committee. The committee is
+	// responsible for certifying and finalising transactions. For now, the
+	// committee is the miners of the last 6 nodes.
+	committeeAddrs []btcutil.Address
 }
 
 // serverPeer extends the peer to maintain state shared by the server and
