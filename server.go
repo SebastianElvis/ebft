@@ -257,7 +257,8 @@ type server struct {
 
 	// committeeAddrs contains the addresses of a committee. The committee is
 	// responsible for certifying and finalising transactions. For now, the
-	// committee is the miners of the last 6 nodes.
+	// committee is the miners of the last n nodes.
+	// TODO: refresh the committee upon a new valid block
 	committeeAddrs []btcutil.Address
 }
 

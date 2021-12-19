@@ -33,12 +33,13 @@ func (b *BlockChain) Committee(n int32) ([]btcutil.Address, error) {
 		if err != nil {
 			return nil, err
 		}
-		// get the coinbase tx in the block
+		// get the coinbase tx (which is always the first tx) in the block
 		coinbaseTx, err := block.Tx(0)
 		if err != nil {
 			return nil, err
 		}
 		// get the pkscript in the coinbase tx's output
+		// in our case the coinbase tx always contains a single output
 		pkScriptBytes := coinbaseTx.MsgTx().TxOut[0].PkScript
 		// decode the pkscript bytes to pkscript
 		pkScript, err := txscript.ParsePkScript(pkScriptBytes)
