@@ -180,6 +180,11 @@ type BlockChain struct {
 	// certain blockchain events.
 	notificationsLock sync.RWMutex
 	notifications     []NotificationCallback
+
+	// committeeAddrs contains the addresses of a committee. The committee is
+	// responsible for certifying and finalising transactions. For now, the
+	// committee is the miners of the last n nodes.
+	committeeAddrs map[string]int32
 }
 
 // HaveBlock returns whether or not the chain instance has the block represented
@@ -1783,10 +1788,21 @@ func New(config *Config) (*BlockChain, error) {
 		return nil, err
 	}
 
+	// Initialize the best chain
 	bestNode := b.bestChain.Tip()
+
+	// Initialize the committee
+	var err error
+	b.committeeAddrs, err = b.Committee(6)
+	if err != nil {
+		log.Debugf("Refresh committee when initializing BlockChain")
+		return nil, err
+	}
+
 	log.Infof("Chain state (height %d, hash %v, totaltx %d, work %v)",
 		bestNode.height, bestNode.hash, b.stateSnapshot.TotalTxns,
 		bestNode.workSum)
+	log.Infof("Current committee: %v", b.committeeAddrs)
 
 	return &b, nil
 }
