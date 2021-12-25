@@ -22,8 +22,8 @@ func (c *chainView) Tail(n int32) []*blockNode {
 	return lastBlocks
 }
 
-func (b *BlockChain) Committee(n int32) ([]btcutil.Address, error) {
-	var committee []btcutil.Address
+func (b *BlockChain) Committee(n int32) (map[btcutil.Address]int32, error) {
+	var committee map[btcutil.Address]int32
 	lastBlocks := b.bestChain.Tail(n)
 	for _, blockNode := range lastBlocks {
 		// get the block hash
@@ -51,8 +51,12 @@ func (b *BlockChain) Committee(n int32) ([]btcutil.Address, error) {
 		if err != nil {
 			return nil, err
 		}
-		// append addr
-		committee = append(committee, addr)
+		// add weight of this addr
+		if _, ok := committee[addr]; ok {
+			committee[addr] += 1
+		} else {
+			committee[addr] = 1
+		}
 		// TODO test
 	}
 	return committee, nil
