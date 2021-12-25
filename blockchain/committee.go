@@ -10,7 +10,11 @@ func (c *chainView) tail(n int32) []*blockNode {
 	cur_block := c.tip()
 	for i := int32(1); i < n; i++ {
 		lastBlocks = append(lastBlocks, cur_block)
-		cur_block = cur_block.parent
+		if cur_block.parent == nil {
+			break
+		} else {
+			cur_block = cur_block.parent
+		}
 	}
 	return lastBlocks
 }
@@ -23,7 +27,7 @@ func (c *chainView) Tail(n int32) []*blockNode {
 }
 
 func (b *BlockChain) Committee(n int32) (map[btcutil.Address]int32, error) {
-	var committee map[btcutil.Address]int32
+	committee := make(map[btcutil.Address]int32)
 	lastBlocks := b.bestChain.Tail(n)
 	for _, blockNode := range lastBlocks {
 		// get the block hash
@@ -36,28 +40,30 @@ func (b *BlockChain) Committee(n int32) (map[btcutil.Address]int32, error) {
 		// get the coinbase tx (which is always the first tx) in the block
 		coinbaseTx, err := block.Tx(0)
 		if err != nil {
+			log.Debugf("Get coinbase tx: %v", err)
 			return nil, err
 		}
-		// get the pkscript in the coinbase tx's output
-		// in our case the coinbase tx always contains a single output
-		pkScriptBytes := coinbaseTx.MsgTx().TxOut[0].PkScript
-		// decode the pkscript bytes to pkscript
-		pkScript, err := txscript.ParsePkScript(pkScriptBytes)
+		// get the coinbase tx's output
+		// the coinbase tx  always contains a single output
+		txOut := coinbaseTx.MsgTx().TxOut[0]
+		// get the PkScript in the txout
+		pkScriptBytes := txOut.PkScript
+		// extract scriptClass and address from pkScriptBytes
+		// we don't consider coinbase txs with multiple miners (e.g., P2Pool)
+		scriptClass, addrs, _, err := txscript.ExtractPkScriptAddrs(pkScriptBytes, b.chainParams)
 		if err != nil {
+			log.Debugf("PkScript class: %v; addrs: %v, err: %v", scriptClass, addrs, err)
 			return nil, err
 		}
-		// convert the pkscript to the address
-		addr, err := pkScript.Address(b.chainParams)
-		if err != nil {
-			return nil, err
-		}
+		// the readable address can be extracted by `addr.EncodeAddress()`
+		addr := addrs[0]
+
 		// add weight of this addr
 		if _, ok := committee[addr]; ok {
 			committee[addr] += 1
 		} else {
 			committee[addr] = 1
 		}
-		// TODO test
 	}
 	return committee, nil
 }
