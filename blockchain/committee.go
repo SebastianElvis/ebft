@@ -2,13 +2,12 @@ package blockchain
 
 import (
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcutil"
 )
 
 func (c *chainView) tail(n int32) []*blockNode {
 	var lastBlocks []*blockNode
 	cur_block := c.tip()
-	for i := int32(1); i < n; i++ {
+	for i := int32(0); i < n; i++ {
 		lastBlocks = append(lastBlocks, cur_block)
 		if cur_block.parent == nil {
 			break
@@ -26,8 +25,8 @@ func (c *chainView) Tail(n int32) []*blockNode {
 	return lastBlocks
 }
 
-func (b *BlockChain) Committee(n int32) (map[btcutil.Address]int32, error) {
-	committee := make(map[btcutil.Address]int32)
+func (b *BlockChain) Committee(n int32) (map[string]int32, error) {
+	committee := make(map[string]int32)
 	lastBlocks := b.bestChain.Tail(n)
 	for _, blockNode := range lastBlocks {
 		// get the block hash
@@ -56,7 +55,7 @@ func (b *BlockChain) Committee(n int32) (map[btcutil.Address]int32, error) {
 			return nil, err
 		}
 		// the readable address can be extracted by `addr.EncodeAddress()`
-		addr := addrs[0]
+		addr := addrs[0].EncodeAddress()
 
 		// add weight of this addr
 		if _, ok := committee[addr]; ok {

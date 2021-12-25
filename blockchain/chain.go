@@ -184,7 +184,7 @@ type BlockChain struct {
 	// committeeAddrs contains the addresses of a committee. The committee is
 	// responsible for certifying and finalising transactions. For now, the
 	// committee is the miners of the last n nodes.
-	committeeAddrs map[btcutil.Address]int32
+	committeeAddrs map[string]int32
 }
 
 // HaveBlock returns whether or not the chain instance has the block represented

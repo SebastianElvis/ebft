@@ -247,5 +247,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 		return false, false, err
 	}
 
+	log.Debugf("Refresed committee: %v", b.committeeAddrs)
+
 	return isMainChain, false, nil
 }
