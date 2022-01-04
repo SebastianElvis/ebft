@@ -20,8 +20,6 @@ type MsgVote struct {
 	Type           VoteType
 }
 
-// TODO: see https://github.com/SebastianElvis/orazor/issues/8
-
 // BtcEncode encodes the receiver to w using the bitcoin protocol encoding.
 // This is part of the Message interface implementation.
 func (msg *MsgVote) BtcEncode(w io.Writer, pver uint32, enc MessageEncoding) error {
