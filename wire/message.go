@@ -58,6 +58,7 @@ const (
 	CmdCFHeaders    = "cfheaders"
 	CmdCFCheckpt    = "cfcheckpt"
 	CmdSendAddrV2   = "sendaddrv2"
+	CmdVote         = "vote"
 )
 
 // MessageEncoding represents the wire message encoding format to be used.
@@ -183,6 +184,9 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdCFCheckpt:
 		msg = &MsgCFCheckpt{}
+
+	case CmdVote:
+		msg = &MsgVote{}
 
 	default:
 		return nil, fmt.Errorf("unhandled command [%s]", command)
