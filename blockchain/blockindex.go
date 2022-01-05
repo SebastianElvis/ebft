@@ -33,6 +33,14 @@ const (
 	// has failed validation, thus the block is also invalid.
 	statusInvalidAncestor
 
+	// statusCertified indicates that the block has been certified by a quorum
+	// of votes.
+	statusCertified
+
+	// statusFinalized indicates that the block has been finalised, i.e.,
+	// cannot be reverted.
+	statusFinalized
+
 	// statusNone indicates that the block has no validation state flags set.
 	//
 	// NOTE: This must be defined last in order to avoid influencing iota.
@@ -46,10 +54,11 @@ func (status blockStatus) HaveData() bool {
 	return status&statusDataStored != 0
 }
 
-// KnownValid returns whether the block is known to be valid. This will return
-// false for a valid block that has not been fully validated yet.
+// KnownValid returns whether the block is known to be valid.
+// This will return false for a valid block that has not been fully validated yet.
+// Note that all certified/finalized blocks are also valid.
 func (status blockStatus) KnownValid() bool {
-	return status&statusValid != 0
+	return status&(statusValid|statusCertified|statusFinalized) != 0
 }
 
 // KnownInvalid returns whether the block is known to be invalid. This may be
@@ -58,6 +67,17 @@ func (status blockStatus) KnownValid() bool {
 // invalid yet.
 func (status blockStatus) KnownInvalid() bool {
 	return status&(statusValidateFailed|statusInvalidAncestor) != 0
+}
+
+// KnownCertified returns whether the block is certified.
+// Note that all finalized blocks are also certified.
+func (status blockStatus) KnownCertified() bool {
+	return status&(statusCertified|statusFinalized) != 0
+}
+
+// KnownFinalized returns whether the block is finalized
+func (status blockStatus) KnownFinalized() bool {
+	return status&statusFinalized != 0
 }
 
 // blockNode represents a block within the block chain and is primarily used to
