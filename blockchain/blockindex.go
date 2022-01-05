@@ -68,6 +68,16 @@ func (status blockStatus) KnownInvalid() bool {
 	return status&(statusValidateFailed|statusInvalidAncestor) != 0
 }
 
+// KnownCertified returns whether the block is certified
+func (status blockStatus) KnownCertified() bool {
+	return status&statusCertified != 0
+}
+
+// KnownFinalized returns whether the block is finalized
+func (status blockStatus) KnownFinalized() bool {
+	return status&statusFinalized != 0
+}
+
 // blockNode represents a block within the block chain and is primarily used to
 // aid in selecting the best chain to be the main chain.  The main chain is
 // stored into the block database.
