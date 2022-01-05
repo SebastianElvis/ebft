@@ -54,10 +54,11 @@ func (status blockStatus) HaveData() bool {
 	return status&statusDataStored != 0
 }
 
-// KnownValid returns whether the block is known to be valid. This will return
-// false for a valid block that has not been fully validated yet.
+// KnownValid returns whether the block is known to be valid.
+// This will return false for a valid block that has not been fully validated yet.
+// Note that all certified/finalized blocks are also valid.
 func (status blockStatus) KnownValid() bool {
-	return status&statusValid != 0
+	return status&(statusValid|statusCertified|statusFinalized) != 0
 }
 
 // KnownInvalid returns whether the block is known to be invalid. This may be
@@ -68,9 +69,10 @@ func (status blockStatus) KnownInvalid() bool {
 	return status&(statusValidateFailed|statusInvalidAncestor) != 0
 }
 
-// KnownCertified returns whether the block is certified
+// KnownCertified returns whether the block is certified.
+// Note that all finalized blocks are also certified.
 func (status blockStatus) KnownCertified() bool {
-	return status&statusCertified != 0
+	return status&(statusCertified|statusFinalized) != 0
 }
 
 // KnownFinalized returns whether the block is finalized
