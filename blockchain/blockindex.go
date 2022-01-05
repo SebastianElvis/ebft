@@ -33,6 +33,14 @@ const (
 	// has failed validation, thus the block is also invalid.
 	statusInvalidAncestor
 
+	// statusCertified indicates that the block has been certified by a quorum
+	// of votes.
+	statusCertified
+
+	// statusFinalized indicates that the block has been finalised, i.e.,
+	// cannot be reverted.
+	statusFinalized
+
 	// statusNone indicates that the block has no validation state flags set.
 	//
 	// NOTE: This must be defined last in order to avoid influencing iota.
