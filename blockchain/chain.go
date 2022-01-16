@@ -184,7 +184,7 @@ type BlockChain struct {
 	// committeeAddrs contains the addresses of a committee. The committee is
 	// responsible for certifying and finalising transactions. For now, the
 	// committee is the miners of the last n nodes.
-	committeeAddrs map[string]int32
+	committeeAddrs map[string]uint32
 }
 
 // HaveBlock returns whether or not the chain instance has the block represented
@@ -1793,7 +1793,7 @@ func New(config *Config) (*BlockChain, error) {
 
 	// Initialize the committee
 	var err error
-	b.committeeAddrs, err = b.Committee(6)
+	b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
 	if err != nil {
 		log.Debugf("Refresh committee when initializing BlockChain")
 		return nil, err
