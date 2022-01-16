@@ -18,6 +18,7 @@ type MsgVote struct {
 	Address        string
 	VotedBlockHash chainhash.Hash
 	Type           VoteType
+	// TODO (RH): add signature
 }
 
 // BtcEncode encodes the receiver to w using the bitcoin protocol encoding.

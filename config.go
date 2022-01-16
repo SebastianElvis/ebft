@@ -595,6 +595,7 @@ func loadConfig() (*config, []string, error) {
 		)
 		activeNetParams.Params = &chainParams
 	}
+	// TODO (RH): add `if ExtSimNet`
 	if numNets > 1 {
 		str := "%s: The testnet, regtest, segnet, signet and simnet " +
 			"params can't be used together -- choose one of the " +
