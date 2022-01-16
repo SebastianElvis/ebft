@@ -4,10 +4,10 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 )
 
-func (c *chainView) tail(n int32) []*blockNode {
+func (c *chainView) tail(n uint32) []*blockNode {
 	var lastBlocks []*blockNode
 	cur_block := c.tip()
-	for i := int32(0); i < n; i++ {
+	for i := uint32(0); i < n; i++ {
 		lastBlocks = append(lastBlocks, cur_block)
 		if cur_block.parent == nil {
 			break
@@ -18,15 +18,15 @@ func (c *chainView) tail(n int32) []*blockNode {
 	return lastBlocks
 }
 
-func (c *chainView) Tail(n int32) []*blockNode {
+func (c *chainView) Tail(n uint32) []*blockNode {
 	c.mtx.Lock()
 	lastBlocks := c.tail(n)
 	c.mtx.Unlock()
 	return lastBlocks
 }
 
-func (b *BlockChain) Committee(n int32) (map[string]int32, error) {
-	committee := make(map[string]int32)
+func (b *BlockChain) Committee(n uint32) (map[string]uint32, error) {
+	committee := make(map[string]uint32)
 	lastBlocks := b.bestChain.Tail(n)
 	for _, blockNode := range lastBlocks {
 		// get the block hash

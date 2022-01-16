@@ -242,7 +242,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 
 	// Refresh committee
 	// TODO (RH): the committee should be refreshed in `OnVote`
-	b.committeeAddrs, err = b.Committee(6)
+	b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
 	if err != nil {
 		log.Debugf("Refresh committee upon new block %v", blockHash)
 		return false, false, err
