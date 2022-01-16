@@ -120,7 +120,9 @@ type blockNode struct {
 	// blockIndex once the node has been added to the global index.
 	status blockStatus
 
-	// TODO (RH): put votes here
+	// votes over this block
+	certifyVotes        map[string]*wire.MsgVote
+	uniqueAnnounceVotes map[string]*wire.MsgVote
 }
 
 // initBlockNode initializes a block node from the given header and parent node,
