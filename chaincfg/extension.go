@@ -11,18 +11,17 @@ import (
 type ExtensionType uint8
 
 const (
-	ExtNone ExtensionType = iota
-	ExtCrystal
+	ExtCrystal ExtensionType = iota
 	ExtSyncORazor
 	ExtPSyncORazor
 )
 
 func (t ExtensionType) String() string {
-	return [...]string{"None", "Crystal", "SyncORazor", "PSyncORazor"}[t]
+	return [...]string{"Crystal", "SyncORazor", "PSyncORazor"}[t]
 }
 
 // TODO: function NewParamsWithExtension
-func CustomExtSimNetParams(extension ExtensionType, committeeSize uint32, networkLatency uint32) Params {
+func CustomExtSimNetParams(extension ExtensionType, committeeSize uint32, latency uint32) Params {
 	return Params{
 		Name:        extension.String() + "-simnet",
 		Net:         wire.SimNet,
@@ -95,8 +94,8 @@ func CustomExtSimNetParams(extension ExtensionType, committeeSize uint32, networ
 		// address generation.
 		HDCoinType: 115, // ASCII for s
 
-		Extension:      extension,
-		CommitteeSize:  committeeSize,
-		NetworkLatency: networkLatency,
+		Extension:     extension,
+		CommitteeSize: committeeSize,
+		Latency:       latency,
 	}
 }

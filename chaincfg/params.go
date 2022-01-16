@@ -252,9 +252,9 @@ type Params struct {
 	HDCoinType uint32
 
 	// Extension-related
-	Extension      ExtensionType
-	CommitteeSize  uint32
-	NetworkLatency uint32
+	Extension     ExtensionType
+	CommitteeSize uint32
+	Latency       uint32
 }
 
 // MainNetParams defines the network parameters for the main Bitcoin network.

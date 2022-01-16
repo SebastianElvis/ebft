@@ -180,6 +180,13 @@ type config struct {
 	miningAddrs          []btcutil.Address
 	minRelayTxFee        btcutil.Amount
 	whitelists           []*net.IPNet
+
+	// extensions
+	CrystalSimNet     bool   `long:"crystal" description:"Use the Crystal simulation test network"`
+	SyncORazorSimNet  bool   `long:"syncorazor" description:"Use the SyncORazor simulation test network"`
+	PSyncORazorSimNet bool   `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
+	CommitteeSize     uint32 `long:"committeesize" description:"Size of the committee"`
+	Latency           uint32 `long:"latency" description:"Latency of the synchronous period"`
 }
 
 // serviceOptions defines the configuration options for the daemon as a service on
@@ -595,7 +602,61 @@ func loadConfig() (*config, []string, error) {
 		)
 		activeNetParams.Params = &chainParams
 	}
-	// TODO (RH): add `if ExtSimNet`
+	// config for Crystal, SyncORazor and PSyncORazor
+	if cfg.CrystalSimNet {
+		numNets++
+		if cfg.CommitteeSize == 0 || cfg.Latency == 0 {
+			str := "%s: In Crystal, CommitteeSize and Latency" +
+				"cannot be zero"
+			err := fmt.Errorf(str, funcName)
+			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, usageMessage)
+			return nil, nil, err
+		}
+		chainParams := chaincfg.CustomExtSimNetParams(
+			chaincfg.ExtCrystal,
+			cfg.CommitteeSize,
+			cfg.Latency,
+		)
+		activeNetParams.Params = &chainParams
+		cfg.DisableDNSSeed = true
+	}
+	if cfg.SyncORazorSimNet {
+		numNets++
+		if cfg.CommitteeSize == 0 || cfg.Latency == 0 {
+			str := "%s: In SyncORazor, CommitteeSize and Latency" +
+				"cannot be zero"
+			err := fmt.Errorf(str, funcName)
+			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, usageMessage)
+			return nil, nil, err
+		}
+		chainParams := chaincfg.CustomExtSimNetParams(
+			chaincfg.ExtSyncORazor,
+			cfg.CommitteeSize,
+			cfg.Latency,
+		)
+		activeNetParams.Params = &chainParams
+		cfg.DisableDNSSeed = true
+	}
+	if cfg.PSyncORazorSimNet {
+		numNets++
+		if cfg.CommitteeSize == 0 || cfg.Latency == 0 {
+			str := "%s: In PSyncORazor, CommitteeSize and Latency" +
+				"cannot be zero"
+			err := fmt.Errorf(str, funcName)
+			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, usageMessage)
+			return nil, nil, err
+		}
+		chainParams := chaincfg.CustomExtSimNetParams(
+			chaincfg.ExtSyncORazor,
+			cfg.CommitteeSize,
+			cfg.Latency,
+		)
+		activeNetParams.Params = &chainParams
+		cfg.DisableDNSSeed = true
+	}
 	if numNets > 1 {
 		str := "%s: The testnet, regtest, segnet, signet and simnet " +
 			"params can't be used together -- choose one of the " +
