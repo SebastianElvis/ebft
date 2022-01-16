@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"golang.org/x/crypto/ripemd160"
 )
 
 type VoteType uint8
@@ -14,22 +13,25 @@ const (
 	VTUniqueAnnounce
 )
 
+// MsgVote mplements the Message interface and represents a vote message.
+// It is used for a peer to advertise its vote on a block. Note that the
+// signature in is a compact signature that includes signer's PK.
+// See `SignCompact` and `RecoverCompact`.
 type MsgVote struct {
-	Address        string
 	VotedBlockHash chainhash.Hash
 	Type           VoteType
-	// TODO (RH): add signature
+	Signature      []byte // compact signature of H(VotedBlockHash + Type)
 }
 
 // BtcEncode encodes the receiver to w using the bitcoin protocol encoding.
 // This is part of the Message interface implementation.
 func (msg *MsgVote) BtcEncode(w io.Writer, pver uint32, enc MessageEncoding) error {
-	return writeElements(w, msg.Address, &msg.VotedBlockHash, msg.Type)
+	return writeElements(w, &msg.VotedBlockHash, msg.Type, &msg.Signature)
 }
 
 // BtcDecode decodes r using the bitcoin protocol encoding into the receiver.
 func (msg *MsgVote) BtcDecode(r io.Reader, pver uint32, enc MessageEncoding) error {
-	return readElements(r, msg.Address, &msg.VotedBlockHash, msg.Type)
+	return readElements(r, &msg.VotedBlockHash, msg.Type, &msg.Signature)
 }
 
 // Command returns the protocol command string for the message.  This is part
@@ -41,7 +43,9 @@ func (msg *MsgVote) Command() string {
 // MaxPayloadLength returns the maximum length the payload can be for the
 // receiver.  This is part of the Message interface implementation.
 func (msg *MsgVote) MaxPayloadLength(pver uint32) uint32 {
-	return 1 + ripemd160.Size + chainhash.HashSize + 1
+	// A message signature has a customized encoding and is at most 72 bytes
+	// https://bitcoin.stackexchange.com/questions/12554/why-the-signature-is-always-65-13232-bytes-long
+	return 1 + chainhash.HashSize + 72 + 1
 }
 
 // MsgVote returns a new message that conforms to the Message
