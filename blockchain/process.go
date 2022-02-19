@@ -240,14 +240,25 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 
 	log.Debugf("Accepted block %v", blockHash)
 
+	// SyncORazor: set a timer 3\Delta on the block and start counting down
+	// If the block is certified within 3\Delta, the block will be finalised
+	if b.chainParams.Name == "SyncORazor-simnet" {
+		go func() {
+			timer := time.NewTimer(time.Duration(3*b.chainParams.Latency) * time.Second)
+			<-timer.C
+			// flag the block's timerFired to true
+			if blockNode := b.index.LookupNode(blockHash); blockNode != nil {
+				blockNode.timerFired = true
+			}
+		}()
+	}
+
 	// Refresh committee
-	// TODO (RH): the committee should be refreshed in `OnVote`
 	b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
 	if err != nil {
 		log.Debugf("Refresh committee upon new block %v", blockHash)
 		return false, false, err
 	}
-
 	log.Debugf("Refresed committee: %v", b.committeeAddrs)
 
 	return isMainChain, false, nil

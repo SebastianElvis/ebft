@@ -25,6 +25,8 @@ type PeerNotifier interface {
 	RelayInventory(invVect *wire.InvVect, data interface{})
 
 	TransactionConfirmed(tx *btcutil.Tx)
+
+	BroadcastVote(vote *wire.MsgVote)
 }
 
 // Config is a configuration struct used to initialize a new SyncManager.
@@ -38,4 +40,7 @@ type Config struct {
 	MaxPeers           int
 
 	FeeEstimator *mempool.FeeEstimator
+
+	// MiningAddrs contains the addresses used by the local miner.
+	MiningAddrs []btcutil.Address
 }

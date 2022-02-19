@@ -185,6 +185,9 @@ type BlockChain struct {
 	// responsible for certifying and finalising transactions. For now, the
 	// committee is the miners of the last n nodes.
 	committeeAddrs map[string]uint32
+
+	// miningAddrs contains the addresses used by the local miner.
+	miningAddrs []btcutil.Address
 }
 
 // HaveBlock returns whether or not the chain instance has the block represented
@@ -1079,6 +1082,11 @@ func (b *BlockChain) reorganizeChain(detachNodes, attachNodes *list.List) error 
 func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, flags BehaviorFlags) (bool, error) {
 	fastAdd := flags&BFFastAdd == BFFastAdd
 
+	// to be included in the best chain, the block has to be certified
+	if !node.status.KnownCertified() {
+		return false, fmt.Errorf("Cannot connect a non-certified block %v to the best chain", node.hash)
+	}
+
 	flushIndexState := func() {
 		// Intentionally ignore errors writing updated node status to DB. If
 		// it fails to write, it's not the end of the world. If the block is
@@ -1106,7 +1114,7 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 		if !fastAdd {
 			err := b.checkConnectBlock(node, block, view, &stxos)
 			if err == nil {
-				b.index.SetStatusFlags(node, statusValid)
+				b.index.SetStatusFlags(node, statusCertified)
 			} else if _, ok := err.(RuleError); ok {
 				b.index.SetStatusFlags(node, statusValidateFailed)
 			} else {
@@ -1156,7 +1164,7 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 		// valid, then we'll update its status and flush the state to
 		// disk again.
 		if fastAdd || !b.index.NodeStatus(node).KnownValid() {
-			b.index.SetStatusFlags(node, statusValid)
+			b.index.SetStatusFlags(node, statusCertified)
 			flushIndexState()
 		}
 
@@ -1705,6 +1713,9 @@ type Config struct {
 	// This field can be nil if the caller is not interested in using a
 	// signature cache.
 	HashCache *txscript.HashCache
+
+	// MiningAddrs contains the addresses used by the local miner.
+	MiningAddrs []btcutil.Address
 }
 
 // New returns a BlockChain instance using the provided configuration details.
@@ -1760,6 +1771,7 @@ func New(config *Config) (*BlockChain, error) {
 		prevOrphans:         make(map[chainhash.Hash][]*orphanBlock),
 		warningCaches:       newThresholdCaches(vbNumBits),
 		deploymentCaches:    newThresholdCaches(chaincfg.DefinedDeployments),
+		miningAddrs:         config.MiningAddrs,
 	}
 
 	// Initialize the chain state from the passed database.  When the db

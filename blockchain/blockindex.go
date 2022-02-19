@@ -123,6 +123,9 @@ type blockNode struct {
 	// votes over this block
 	certifyVotes        map[string]*wire.MsgVote
 	uniqueAnnounceVotes map[string]*wire.MsgVote
+
+	// timerFired represents whether the timer in SyncORazor has fired
+	timerFired bool
 }
 
 // initBlockNode initializes a block node from the given header and parent node,
