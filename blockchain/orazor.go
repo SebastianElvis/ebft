@@ -27,18 +27,18 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 	if b.chainParams.Name == "SyncORazor-simnet" {
 		// SyncORazor does not have UniqueAnnounce
 		if voteType == wire.VTUniqueAnnounce {
-			return fmt.Errorf("Wrong vote type in SyncORazor-simnet: VTUniqueAnnounce")
+			return fmt.Errorf("wrong vote type in SyncORazor-simnet: VTUniqueAnnounce")
 		}
 		// get the block
 		block, err := b.BlockByHash(&votedBlockHash)
 		if err != nil {
-			return fmt.Errorf("Block %v does not exist: %v", votedBlockHash, err)
+			return fmt.Errorf("block %v does not exist: %v", votedBlockHash, err)
 		}
 		// get the blockNode
 		blockNode := b.index.LookupNode(&votedBlockHash)
 		// if the block is already certified or finalised, return nil directly
 		if blockNode.status.KnownCertified() {
-			return fmt.Errorf("Block %v is already certified or finalised", votedBlockHash)
+			return fmt.Errorf("block %v is already certified or finalised", votedBlockHash)
 		}
 		// add vote
 		if _, ok := blockNode.certifyVotes[addr]; !ok {
@@ -67,14 +67,14 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 			// refresh the committee
 			b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
 			if err != nil {
-				return fmt.Errorf("Refresh committee upon new block %v", votedBlockHash)
+				return fmt.Errorf("refresh committee upon new block %v", votedBlockHash)
 			}
 			// if 3Delta has not yet passed, finalise the block and all its ancestors
-			if blockNode.timerFired == false {
+			if !blockNode.timerFired {
 				blockNode.status = statusFinalized
 				curBlock := blockNode.parent
 				for {
-					if curBlock.status != statusFinalized {
+					if !curBlock.status.KnownFinalized() {
 						curBlock.status = statusFinalized
 						curBlock = curBlock.parent
 					} else {
@@ -89,7 +89,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 		// get the block
 		block, err := b.BlockByHash(&votedBlockHash)
 		if err != nil {
-			return fmt.Errorf("Block %v does not exist: %v", votedBlockHash, err)
+			return fmt.Errorf("block %v does not exist: %v", votedBlockHash, err)
 		}
 		// get the blockNode
 		blockNode := b.index.LookupNode(&votedBlockHash)
@@ -97,7 +97,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 		if voteType == wire.VTCertify {
 			// if the block is already certified or finalised, return nil directly
 			if blockNode.status.KnownCertified() {
-				return fmt.Errorf("Block %v is already certified or finalised", votedBlockHash)
+				return fmt.Errorf("block %v is already certified or finalised", votedBlockHash)
 			}
 
 			// add vote
@@ -123,25 +123,6 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 				if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 					return err
 				}
-
-				// refresh the committee
-				b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
-				if err != nil {
-					return fmt.Errorf("Refresh committee upon new block %v", votedBlockHash)
-				}
-				// if 3Delta has not yet passed, finalise the block and all its ancestors
-				if blockNode.timerFired == false {
-					blockNode.status = statusFinalized
-					curBlock := blockNode.parent
-					for {
-						if curBlock.status != statusFinalized {
-							curBlock.status = statusFinalized
-							curBlock = curBlock.parent
-						} else {
-							break
-						}
-					}
-				}
 			}
 		} else if voteType == wire.VTUniqueAnnounce {
 			// add vote
@@ -161,21 +142,21 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 			}
 			if totalVotes >= quorum && blockNode.status.KnownCertified() {
 				// finalise all previous blocks
-				b := blockNode
+				curBlock := blockNode
 				for {
-					parent := b.parent
-					if parent.status.KnownFinalized() {
-						break
-					} else {
+					parent := curBlock.parent
+					if !parent.status.KnownFinalized() {
 						parent.status = statusFinalized
-						b = parent
+						curBlock = parent
+					} else {
+						break
 					}
 				}
 			}
 		}
 
 	} else {
-		return fmt.Errorf("Wrong network: %s", b.chainParams.Name)
+		return fmt.Errorf("wrong network: %s", b.chainParams.Name)
 	}
 	return nil
 }
