@@ -79,6 +79,14 @@ type headersMsg struct {
 	peer    *peerpkg.Peer
 }
 
+// voteMsg packages a vote message and the peer it came from together so the
+// block handler has access to that information.
+type voteMsg struct {
+	vote  *wire.MsgVote
+	peer  *peerpkg.Peer
+	reply chan struct{}
+}
+
 // notFoundMsg packages a bitcoin notfound message and the peer it came from
 // together so the block handler has access to that information.
 type notFoundMsg struct {
@@ -206,6 +214,9 @@ type SyncManager struct {
 
 	// An optional fee estimator.
 	feeEstimator *mempool.FeeEstimator
+
+	// miningAddrs contains the addresses used by the local miner.
+	miningAddrs []btcutil.Address
 }
 
 // resetHeaderState sets the headers-first mode state to values appropriate for
@@ -651,6 +662,8 @@ func (sm *SyncManager) current() bool {
 }
 
 // handleBlockMsg handles block messages from all peers.
+// While sm.ProcessBlock() aims at processing blocks from the miner/RPC,
+// this method aims at processing blocks from the peer.
 func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 	peer := bmsg.peer
 	state, exists := sm.peerStates[peer]
@@ -805,6 +818,22 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		}
 	}
 
+	// if in committee, construct and broadcast a vote
+	committee, err := sm.chain.Committee(sm.chainParams.CommitteeSize)
+	if err != nil {
+		log.Warnf("Failed to get committee: %v", err)
+	}
+	for _, addr := range sm.miningAddrs {
+		if _, ok := committee[addr.String()]; ok {
+			msgVote := wire.MsgVote{
+				VotedBlockHash: *bmsg.block.Hash(),
+				Type:           wire.VTCertify,
+				Address:        addr.String(),
+			}
+			sm.peerNotifier.BroadcastVote(&msgVote)
+		}
+	}
+
 	// Nothing more to do if we aren't in headers-first mode.
 	if !sm.headersFirstMode {
 		return
@@ -855,6 +884,19 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 			peer.Addr(), err)
 		return
 	}
+}
+
+// handleVoteMsg handles vote messages from all peers.
+func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
+	// forward vote to struct `BlockChain` to process
+	err := sm.chain.ProcessVote(msg.vote)
+	if err != nil {
+		log.Warnf("Failed to process vote message %v: %v", msg.vote, err)
+		return
+	}
+
+	// forward the vote
+	go sm.peerNotifier.BroadcastVote(msg.vote)
 }
 
 // fetchHeaderBlocks creates and sends a request to the syncPeer for the next
@@ -1325,6 +1367,10 @@ out:
 				sm.handleBlockMsg(msg)
 				msg.reply <- struct{}{}
 
+			case *voteMsg:
+				sm.handleVoteMsg(msg)
+				msg.reply <- struct{}{}
+
 			case *invMsg:
 				sm.handleInvMsg(msg)
 
@@ -1588,7 +1634,7 @@ func (sm *SyncManager) SyncPeerID() int32 {
 }
 
 // ProcessBlock makes use of ProcessBlock on an internal instance of a block
-// chain.
+// chain. The method is mainly used by the miner.
 func (sm *SyncManager) ProcessBlock(block *btcutil.Block, flags blockchain.BehaviorFlags) (bool, error) {
 	reply := make(chan processBlockResponse, 1)
 	sm.msgChan <- processBlockMsg{block: block, flags: flags, reply: reply}
@@ -1631,6 +1677,7 @@ func New(config *Config) (*SyncManager, error) {
 		headerList:      list.New(),
 		quit:            make(chan struct{}),
 		feeEstimator:    config.FeeEstimator,
+		miningAddrs:     config.MiningAddrs,
 	}
 
 	best := sm.chain.BestSnapshot()

@@ -2252,6 +2252,11 @@ func (s *server) BroadcastMessage(msg wire.Message, exclPeers ...*serverPeer) {
 	s.broadcast <- bmsg
 }
 
+// BroadcastVote sends the vote to all
+func (s *server) BroadcastVote(vote *wire.MsgVote) {
+	s.BroadcastMessage(vote)
+}
+
 // ConnectedCount returns the number of currently connected peers.
 func (s *server) ConnectedCount() int32 {
 	replyChan := make(chan int32)
@@ -2733,6 +2738,7 @@ func newServer(listenAddrs, agentBlacklist, agentWhitelist []string,
 		SigCache:     s.sigCache,
 		IndexManager: indexManager,
 		HashCache:    s.hashCache,
+		MiningAddrs:  cfg.miningAddrs,
 	})
 	if err != nil {
 		return nil, err
@@ -2803,6 +2809,7 @@ func newServer(listenAddrs, agentBlacklist, agentWhitelist []string,
 		DisableCheckpoints: cfg.DisableCheckpoints,
 		MaxPeers:           cfg.MaxPeers,
 		FeeEstimator:       s.feeEstimator,
+		MiningAddrs:        cfg.miningAddrs,
 	})
 	if err != nil {
 		return nil, err
