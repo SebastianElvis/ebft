@@ -23,7 +23,7 @@ func (t ExtensionType) String() string {
 // TODO: function NewParamsWithExtension
 func CustomExtSimNetParams(extension ExtensionType, committeeSize uint32, latency uint32) Params {
 	return Params{
-		Name:        extension.String() + "-simnet",
+		Name:        "simnet",
 		Net:         wire.SimNet,
 		DefaultPort: "18555",
 		DNSSeeds:    []DNSSeed{}, // NOTE: There must NOT be any seeds.

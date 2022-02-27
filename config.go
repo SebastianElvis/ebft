@@ -619,6 +619,7 @@ func loadConfig() (*config, []string, error) {
 			cfg.Latency,
 		)
 		activeNetParams.Params = &chainParams
+		activeNetParams.rpcPort = "18556"
 		cfg.DisableDNSSeed = true
 	}
 	if cfg.SyncORazorSimNet {
@@ -637,6 +638,7 @@ func loadConfig() (*config, []string, error) {
 			cfg.Latency,
 		)
 		activeNetParams.Params = &chainParams
+		activeNetParams.rpcPort = "18556"
 		cfg.DisableDNSSeed = true
 	}
 	if cfg.PSyncORazorSimNet {
@@ -655,6 +657,7 @@ func loadConfig() (*config, []string, error) {
 			cfg.Latency,
 		)
 		activeNetParams.Params = &chainParams
+		activeNetParams.rpcPort = "18556"
 		cfg.DisableDNSSeed = true
 	}
 	if numNets > 1 {
