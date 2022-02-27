@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcutil"
@@ -242,7 +243,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 
 	// SyncORazor: set a timer 3\Delta on the block and start counting down
 	// If the block is certified within 3\Delta, the block will be finalised
-	if b.chainParams.Name == "SyncORazor-simnet" {
+	if b.chainParams.Extension == chaincfg.ExtSyncORazor {
 		go func() {
 			timer := time.NewTimer(time.Duration(3*b.chainParams.Latency) * time.Second)
 			<-timer.C

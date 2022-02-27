@@ -3,6 +3,7 @@ package blockchain
 import (
 	"fmt"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/wire"
 )
 
@@ -24,7 +25,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 	// 	return err
 	// }
 
-	if b.chainParams.Name == "SyncORazor-simnet" {
+	if b.chainParams.Extension == chaincfg.ExtSyncORazor {
 		// SyncORazor does not have UniqueAnnounce
 		if voteType == wire.VTUniqueAnnounce {
 			return fmt.Errorf("wrong vote type in SyncORazor-simnet: VTUniqueAnnounce")
@@ -83,7 +84,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) error {
 				}
 			}
 		}
-	} else if b.chainParams.Name == "PSyncORazor-simnet" {
+	} else if b.chainParams.Extension == chaincfg.ExtPSyncORazor {
 		// quorum size
 		quorum := b.chainParams.CommitteeSize*2/3 + 1
 		// get the block
