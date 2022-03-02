@@ -250,6 +250,19 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 			// flag the block's timerFired to true
 			if blockNode := b.index.LookupNode(blockHash); blockNode != nil {
 				blockNode.timerFired = true
+				// if no block at the same height
+				if b.bestChain.FindFork(blockNode) == nil {
+					// finalise the block and its ancestors
+					curBlock := blockNode
+					for {
+						if !curBlock.status.KnownFinalized() {
+							curBlock.status = statusFinalized
+							curBlock = curBlock.parent
+						} else {
+							break
+						}
+					}
+				}
 			}
 		}()
 	}

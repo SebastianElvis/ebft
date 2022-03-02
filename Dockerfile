@@ -33,7 +33,8 @@ RUN set -ex \
   && if [ "${ARCH}" = "arm32v7" ]; then export GOARCH=arm; fi \
   && if [ "${ARCH}" = "arm64v8" ]; then export GOARCH=arm64; fi \
   && echo "Compiling for $GOARCH" \
-  && go install -v . ./cmd/...
+  && go install -v . ./cmd/... \
+  && GO111MODULE=on go get github.com/btcsuite/btcwallet@v0.11.0
 
 FROM $ARCH/alpine:3.12
 
