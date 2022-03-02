@@ -889,7 +889,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	// forward vote to struct `BlockChain` to process
-	err := sm.chain.ProcessVote(msg.vote)
+	certified, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {
 		log.Warnf("Failed to process vote message %v: %v", msg.vote, err)
 		return
@@ -897,6 +897,18 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 
 	// forward the vote
 	go sm.peerNotifier.BroadcastVote(msg.vote)
+
+	// in PSyncORazor,
+	if certified &&
+		msg.vote.Type == wire.VTCertify &&
+		sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+		uniqueAnnounceVote := wire.MsgVote{
+			VotedBlockHash: msg.vote.VotedBlockHash,
+			Type:           wire.VTUniqueAnnounce,
+			Address:        sm.miningAddrs[0].String(),
+		}
+		go sm.peerNotifier.BroadcastVote(&uniqueAnnounceVote)
+	}
 }
 
 // fetchHeaderBlocks creates and sends a request to the syncPeer for the next
