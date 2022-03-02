@@ -4,9 +4,11 @@ LABEL maintainer="orazor-dev"
 ENV GOPATH=/go
 ENV PATH=$GOPATH/bin/:$PATH
 ADD . /app
+ADD ./tools/Btcwallet /root/.btcwallet
+ADD ./tools/Btcd /root/.btcd
 WORKDIR /app
 
-RUN apk add --no-cache bash git go musl-dev \
+RUN apk add --no-cache bash git go musl-dev ca-certificates \
   # install btcd
   && go build \
   && go install . ./cmd/... \
@@ -16,8 +18,8 @@ RUN apk add --no-cache bash git go musl-dev \
   && cd btcwallet \
   && GO111MODULE=on go install -v . ./cmd/... \
   # clean
-  && apk del git go musl-dev \
+  && apk del git go musl-dev ca-certificates \
   && rm -rf /apk /tmp/* /var/cache/apk/* $GOPATH/src/*
 
-EXPOSE 18555 18556
+EXPOSE 18554 18555 18556
 CMD ["btcd", "--help"]

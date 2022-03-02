@@ -1,54 +1,53 @@
 version: '3'
 services:
   node1:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: /go/bin/btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=SSwfPFMdZMGvQ5VyBQsHPdy69sPxevhxe5
+    image: orazor-dev/btcd
+    command: btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=SPshFYhAsbmJEkXSQvBJFHioKYF11g72AW
     cap_add:
       - ALL
+    ports:
+      - "18554:18554"
+      - "18555:18555"
+      - "18556:18556"
     networks:
       vpcbr:
         ipv4_address: 10.6.0.11
   node2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: /go/bin/btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.11:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=SSwfPFMdZMGvQ5VyBQsHPdy69sPxevhxe5
+    image: orazor-dev/btcd
+    command: btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.11:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=STKps6v84QoeqKC36CwMshX4GW3YDXprZk
     cap_add:
       - ALL
     networks:
       vpcbr:
         ipv4_address: 10.6.0.12
   node3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: /go/bin/btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.11:18555 --connect=10.6.0.14:18555 --miningaddr=SSwfPFMdZMGvQ5VyBQsHPdy69sPxevhxe5
+    image: orazor-dev/btcd
+    command: btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.11:18555 --connect=10.6.0.14:18555 --miningaddr=SXdsF6epE8c89j6cqu1ank7EVYaREvo1c7
     cap_add:
       - ALL
     networks:
       vpcbr:
         ipv4_address: 10.6.0.13
   node4:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: /go/bin/btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.11:18555 --miningaddr=SSwfPFMdZMGvQ5VyBQsHPdy69sPxevhxe5
+    image: orazor-dev/btcd
+    command: btcd --syncorazor --committeesize=10 --latency=5 -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.11:18555 --miningaddr=SaUZb3WcvMPBXuBckehgRhMpNfDGNk7Nus
     cap_add:
       - ALL
     networks:
       vpcbr:
         ipv4_address: 10.6.0.14
-#   btcwallet:
-#     build: 
-#       context: .
-#       dockerfile: Dockerfile-btcwallet
-#     volumes:
-#       - type: bind
-#         source: ./btcwallet
-#         target: /go/btcwallet
-#     command: ["/go/bin/btcwallet", "-C", "/go/btcwallet/sample.conf"]
+  # wallet:
+  #   image: orazor-dev/btcd
+  #   command: btcwallet --simnet --rpcconnect=10.6.0.11:18556 --username=USER --password=PASS
+  #   cap_add:
+  #     - ALL
+  #   ports:
+  #     - "18554:18554"
+  #     - "18555:18555"
+  #     - "18556:18556"
+  #   networks:
+  #     vpcbr:
+  #       ipv4_address: 10.6.0.15
 
 networks:
   vpcbr:
