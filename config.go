@@ -652,7 +652,7 @@ func loadConfig() (*config, []string, error) {
 			return nil, nil, err
 		}
 		chainParams := chaincfg.CustomExtSimNetParams(
-			chaincfg.ExtSyncORazor,
+			chaincfg.ExtPSyncORazor,
 			cfg.CommitteeSize,
 			cfg.Latency,
 		)

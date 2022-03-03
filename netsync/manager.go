@@ -819,18 +819,21 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 	}
 
 	// if in committee, construct and broadcast a vote
-	committee, err := sm.chain.Committee(sm.chainParams.CommitteeSize)
-	if err != nil {
-		log.Warnf("Failed to get committee: %v", err)
-	}
-	for _, addr := range sm.miningAddrs {
-		if _, ok := committee[addr.String()]; ok {
-			msgVote := wire.MsgVote{
-				VotedBlockHash: *bmsg.block.Hash(),
-				Type:           wire.VTCertify,
-				Address:        addr.String(),
+	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+		committee, err := sm.chain.Committee(sm.chainParams.CommitteeSize)
+		if err != nil {
+			log.Warnf("Failed to get committee: %v", err)
+		}
+		for _, addr := range sm.miningAddrs {
+			if _, ok := committee[addr.String()]; ok {
+				msgVote := wire.MsgVote{
+					VotedBlockHash: *bmsg.block.Hash(),
+					Type:           wire.VTCertify,
+					Address:        addr.String(),
+				}
+				log.Debugf("miner %v is in the committee, broadcast vote message %v", addr.String(), msgVote)
+				go sm.peerNotifier.BroadcastVote(&msgVote)
 			}
-			sm.peerNotifier.BroadcastVote(&msgVote)
 		}
 	}
 
@@ -888,6 +891,8 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
+	log.Debugf("received vote message %v", msg)
+
 	// forward vote to struct `BlockChain` to process
 	certified, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {

@@ -1,7 +1,8 @@
-endpoint=$1
-num_blocks=$2
-interval=$3
-committee_size=$4
+#!/bin/bash
+endpoint=${1:-localhost}
+num_blocks=${2:-10}
+interval=${3:-5}
+committee_size=${4:-4}
 
 # read address list as $x
 mapfile -t x < address-list.txt

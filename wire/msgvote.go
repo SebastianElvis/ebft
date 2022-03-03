@@ -14,6 +14,10 @@ const (
 	VTUniqueAnnounce
 )
 
+func (t VoteType) String() string {
+	return [...]string{"Foo", "Bar"}[t]
+}
+
 // MsgVote mplements the Message interface and represents a vote message.
 // It is used for a peer to advertise its vote on a block.
 // TODO (RH, non-urgent): SignCompact(sk, H(VotedBlockHash || Type)) rather than unsigned Address

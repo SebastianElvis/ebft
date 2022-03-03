@@ -8,9 +8,14 @@ import (
 )
 
 func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
+	if b.chainParams.Extension != chaincfg.ExtSyncORazor && b.chainParams.Extension != chaincfg.ExtPSyncORazor {
+		return false, fmt.Errorf("vote message cam only exist with extension ExtSyncORazor or ExtPSyncORazor")
+	}
+
 	votedBlockHash := vote.VotedBlockHash
 	voteType := vote.Type
 	addr := vote.Address
+	log.Debugf("received %v vote on block %v from %v", voteType.String(), votedBlockHash, addr)
 
 	// signature := vote.Signature
 	// // verify signature
@@ -72,6 +77,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 			if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 				return false, err
 			}
+			log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
 			// refresh the committee
 			b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
 			if err != nil {
@@ -117,6 +123,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 				if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 					return false, err
 				}
+				log.Infof("extension PSyncORazor: block %v has been certified", blockNode.hash)
 				return true, nil
 			} else {
 				return false, nil
@@ -141,6 +148,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 				for {
 					if !curBlock.status.KnownFinalized() {
 						curBlock.status = statusFinalized
+						log.Infof("extension PSyncORazor: block %v has been finalised", curBlock.hash)
 						curBlock = curBlock.parent
 					} else {
 						break

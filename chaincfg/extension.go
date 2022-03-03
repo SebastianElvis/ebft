@@ -11,13 +11,14 @@ import (
 type ExtensionType uint8
 
 const (
-	ExtCrystal ExtensionType = iota
+	ExtNone ExtensionType = iota
+	ExtCrystal
 	ExtSyncORazor
 	ExtPSyncORazor
 )
 
 func (t ExtensionType) String() string {
-	return [...]string{"Crystal", "SyncORazor", "PSyncORazor"}[t]
+	return [...]string{"None", "Crystal", "SyncORazor", "PSyncORazor"}[t]
 }
 
 // TODO: function NewParamsWithExtension

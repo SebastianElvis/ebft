@@ -1804,11 +1804,13 @@ func New(config *Config) (*BlockChain, error) {
 	bestNode := b.bestChain.Tip()
 
 	// Initialize the committee
-	var err error
-	b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
-	if err != nil {
-		log.Debugf("Refresh committee when initializing BlockChain")
-		return nil, err
+	if b.chainParams.Extension != chaincfg.ExtNone {
+		var err error
+		b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
+		if err != nil {
+			log.Debugf("Refresh committee when initializing BlockChain")
+			return nil, err
+		}
 	}
 
 	log.Infof("Chain state (height %d, hash %v, totaltx %d, work %v)",
