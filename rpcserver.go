@@ -136,6 +136,7 @@ var rpcHandlersBeforeInit = map[string]commandHandler{
 	"decoderawtransaction":   handleDecodeRawTransaction,
 	"decodescript":           handleDecodeScript,
 	"estimatefee":            handleEstimateFee,
+	"generatetoaddress":      handleGenerateToAddress,
 	"generate":               handleGenerate,
 	"getaddednodeinfo":       handleGetAddedNodeInfo,
 	"getbestblock":           handleGetBestBlock,
@@ -920,6 +921,58 @@ func handleGenerate(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (i
 	reply := make([]string, c.NumBlocks)
 
 	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocks(c.NumBlocks)
+	if err != nil {
+		return nil, &btcjson.RPCError{
+			Code:    btcjson.ErrRPCInternal.Code,
+			Message: err.Error(),
+		}
+	}
+
+	// Mine the correct number of blocks, assigning the hex representation of the
+	// hash of each one to its place in the reply.
+	for i, hash := range blockHashes {
+		reply[i] = hash.String()
+	}
+
+	return reply, nil
+}
+
+// handleGenerate handles generatetoaddress commands.
+func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (interface{}, error) {
+	// Respond with an error if there's virtually 0 chance of mining a block
+	// with the CPU.
+	if !s.cfg.ChainParams.GenerateSupported {
+		return nil, &btcjson.RPCError{
+			Code: btcjson.ErrRPCDifficulty,
+			Message: fmt.Sprintf("No support for `generate` on "+
+				"the current network, %s, as it's unlikely to "+
+				"be possible to mine a block with the CPU.",
+				s.cfg.ChainParams.Net),
+		}
+	}
+
+	c := cmd.(*btcjson.GenerateToAddressCmd)
+
+	// Respond with an error if the client is requesting 0 blocks to be generated.
+	if c.NumBlocks == 0 {
+		return nil, &btcjson.RPCError{
+			Code:    btcjson.ErrRPCInternal.Code,
+			Message: "Please request a nonzero number of blocks to generate.",
+		}
+	}
+
+	// Respond with an error if the client does not specify address
+	if c.Address == "" {
+		return nil, &btcjson.RPCError{
+			Code:    btcjson.ErrRPCInternal.Code,
+			Message: "Please specify the address for the generated blocks.",
+		}
+	}
+
+	// Create a reply
+	reply := make([]string, c.NumBlocks)
+
+	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
 	if err != nil {
 		return nil, &btcjson.RPCError{
 			Code:    btcjson.ErrRPCInternal.Code,
