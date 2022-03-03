@@ -8,7 +8,7 @@ ADD ./tools/Btcwallet /root/.btcwallet
 ADD ./tools/Btcd /root/.btcd
 WORKDIR /app
 
-RUN apk add --no-cache bash git go musl-dev ca-certificates \
+RUN apk add --no-cache bash git go musl-dev \
   # install btcd
   && go build \
   && go install . ./cmd/... \
@@ -18,7 +18,7 @@ RUN apk add --no-cache bash git go musl-dev ca-certificates \
   && cd btcwallet \
   && GO111MODULE=on go install -v . ./cmd/... \
   # clean
-  && apk del git go musl-dev ca-certificates \
+  && apk del git go musl-dev \
   && rm -rf /apk /tmp/* /var/cache/apk/* $GOPATH/src/*
 
 EXPOSE 18554 18555 18556

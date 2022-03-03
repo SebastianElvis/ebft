@@ -263,7 +263,10 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 				}
 				// if no block at the same height
 				commonAncestor := b.bestChain.FindFork(blockNode)
-				if commonAncestor == nil || commonAncestor.hash == blockNode.hash || commonAncestor.hash == b.bestChain.genesis().hash {
+
+				// there is a concurrent block
+				// if commonAncestor == nil || commonAncestor.hash == blockNode.hash || commonAncestor.hash == b.bestChain.genesis().hash {
+				if blockNode.workSum.Cmp(b.bestChain.Tip().workSum) <= 0 {
 					// finalise the block and its ancestors
 					curBlock := blockNode
 					for {
@@ -272,6 +275,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 							log.Infof("extension SyncORazor: block %v has been finalised", curBlock.hash)
 							curBlock = curBlock.parent
 						} else {
+							log.Infof("extension SyncORazor: block %v and its ancestors have been finalised", blockNode.hash)
 							break
 						}
 					}
@@ -285,7 +289,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 
 	// Refresh committee
 	if b.chainParams.Extension != chaincfg.ExtNone {
-		b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
+		b.committeeAddrs, err = b.Committee()
 		if err != nil {
 			log.Debugf("refresh committee upon new block %v", blockHash)
 			return false, false, err

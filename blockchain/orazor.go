@@ -30,7 +30,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 	// 	return err
 	// }
 
-	committee, err := b.Committee(b.chainParams.CommitteeSize)
+	committee, err := b.Committee()
 	if err != nil {
 		return false, err
 	}
@@ -79,7 +79,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 			}
 			log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
 			// refresh the committee
-			b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
+			b.committeeAddrs, err = b.Committee()
 			if err != nil {
 				return false, fmt.Errorf("refresh committee upon new block %v", votedBlockHash)
 			}

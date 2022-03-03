@@ -590,7 +590,7 @@ func (m *CPUMiner) GenerateNBlocksToAddress(n uint32, addr string) ([]*chainhash
 
 		// Choose a payment address at random.
 		rand.Seed(time.Now().UnixNano())
-		payToAddr, err := btcutil.DecodeAddress(addr, &chaincfg.SimNetParams)
+		payToAddr, err := btcutil.DecodeAddress(addr, m.cfg.ChainParams)
 		if err != nil {
 			log.Errorf("Failed to decode address %v: %v", addr, err)
 			continue

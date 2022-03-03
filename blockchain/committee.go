@@ -26,19 +26,20 @@ func (c *chainView) Tail(n uint32) []*blockNode {
 	return lastBlocks
 }
 
-func (b *BlockChain) Committee(n uint32) (map[string]uint32, error) {
+func (b *BlockChain) Committee() (map[string]uint32, error) {
 	// static committee policy
 	committee := make(map[string]uint32)
-	for i := uint32(0); i < n; i++ {
+
+	for i := uint32(0); i < b.chainParams.CommitteeSize; i++ {
 		addr := addressList[i]
 		committee[addr] = 1
 	}
 	return committee, nil
 }
 
-func (b *BlockChain) CommitteeLastN(n uint32) (map[string]uint32, error) {
+func (b *BlockChain) CommitteeLastN() (map[string]uint32, error) {
 	committee := make(map[string]uint32)
-	lastBlocks := b.bestChain.Tail(n)
+	lastBlocks := b.bestChain.Tail(b.chainParams.CommitteeSize)
 	for _, blockNode := range lastBlocks {
 		// get the block hash
 		blockHash := blockNode.hash

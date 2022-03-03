@@ -969,9 +969,6 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 		}
 	}
 
-	// Create a reply
-	reply := make([]string, c.NumBlocks)
-
 	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
 	if err != nil {
 		return nil, &btcjson.RPCError{
@@ -980,6 +977,8 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 		}
 	}
 
+	// Create a reply
+	reply := make([]string, c.NumBlocks)
 	// Mine the correct number of blocks, assigning the hex representation of the
 	// hash of each one to its place in the reply.
 	for i, hash := range blockHashes {

@@ -1806,7 +1806,7 @@ func New(config *Config) (*BlockChain, error) {
 	// Initialize the committee
 	if b.chainParams.Extension != chaincfg.ExtNone {
 		var err error
-		b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
+		b.committeeAddrs, err = b.Committee()
 		if err != nil {
 			log.Debugf("Refresh committee when initializing BlockChain")
 			return nil, err

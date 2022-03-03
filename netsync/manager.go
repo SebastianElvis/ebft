@@ -818,12 +818,14 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		}
 	}
 
-	// if in committee, construct and broadcast a vote
 	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
-		committee, err := sm.chain.Committee(sm.chainParams.CommitteeSize)
+		log.Debugf("test in handleBlockMsg")
+		committee, err := sm.chain.Committee()
 		if err != nil {
 			log.Warnf("Failed to get committee: %v", err)
 		}
+		// if in committee, construct and broadcast a certify vote
+		// TODO (RH): bug here
 		for _, addr := range sm.miningAddrs {
 			if _, ok := committee[addr.String()]; ok {
 				msgVote := wire.MsgVote{
@@ -1408,7 +1410,7 @@ out:
 				msg.reply <- peerID
 
 			case processBlockMsg:
-				_, isOrphan, err := sm.chain.ProcessBlock(
+				_, _, err := sm.chain.ProcessBlock(
 					msg.block, msg.flags)
 				if err != nil {
 					msg.reply <- processBlockResponse{
@@ -1417,9 +1419,26 @@ out:
 					}
 				}
 
-				msg.reply <- processBlockResponse{
-					isOrphan: isOrphan,
-					err:      nil,
+				// broadcast vote
+				if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+					log.Debugf("test in case processBlockMsg")
+					committee, err := sm.chain.Committee()
+					if err != nil {
+						log.Warnf("Failed to get committee: %v", err)
+					}
+					// if in committee, construct and broadcast a certify vote
+					// TODO (RH): bug here
+					for _, addr := range sm.miningAddrs {
+						if _, ok := committee[addr.String()]; ok {
+							msgVote := wire.MsgVote{
+								VotedBlockHash: *msg.block.Hash(),
+								Type:           wire.VTCertify,
+								Address:        addr.String(),
+							}
+							log.Debugf("miner %v is in the committee, broadcast vote message %v", addr.String(), msgVote)
+							go sm.peerNotifier.BroadcastVote(&msgVote)
+						}
+					}
 				}
 
 			case isCurrentMsg:
