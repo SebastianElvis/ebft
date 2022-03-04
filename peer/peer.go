@@ -178,9 +178,12 @@ type MessageListeners struct {
 	// message.
 	OnFilterLoad func(p *Peer, msg *wire.MsgFilterLoad)
 
-	// OnMerkleBlock  is invoked when a peer receives a merkleblock bitcoin
+	// OnMerkleBlock is invoked when a peer receives a merkleblock bitcoin
 	// message.
 	OnMerkleBlock func(p *Peer, msg *wire.MsgMerkleBlock)
+
+	// OnVote is invoked when a peer receives a vote message.
+	OnVote func(p *Peer, msg *wire.MsgVote)
 
 	// OnVersion is invoked when a peer receives a version bitcoin message.
 	// The caller may return a reject message in which case the message will
@@ -1524,6 +1527,11 @@ out:
 		case *wire.MsgMerkleBlock:
 			if p.cfg.Listeners.OnMerkleBlock != nil {
 				p.cfg.Listeners.OnMerkleBlock(p, msg)
+			}
+
+		case *wire.MsgVote:
+			if p.cfg.Listeners.OnVote != nil {
+				p.cfg.Listeners.OnVote(p, msg)
 			}
 
 		case *wire.MsgReject:

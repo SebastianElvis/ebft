@@ -15,7 +15,7 @@ const (
 )
 
 func (t VoteType) String() string {
-	return [...]string{"Foo", "Bar"}[t]
+	return [...]string{"Certify", "UniqueAnnounce"}[t]
 }
 
 // MsgVote mplements the Message interface and represents a vote message.
