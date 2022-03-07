@@ -29,7 +29,6 @@ func (c *chainView) Tail(n uint32) []*blockNode {
 func (b *BlockChain) Committee() (map[string]uint32, error) {
 	// static committee policy
 	committee := make(map[string]uint32)
-
 	for i := uint32(0); i < b.chainParams.CommitteeSize; i++ {
 		addr := addressList[i]
 		committee[addr] = 1

@@ -47,7 +47,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 			return false, fmt.Errorf("wrong vote type in SyncORazor-simnet: VTUniqueAnnounce")
 		}
 		// get the block
-		block, err := b.BlockByHash(&votedBlockHash)
+		block, err := b.BlockByHashNoMainChain(&votedBlockHash)
 		if err != nil {
 			return false, fmt.Errorf("block %v does not exist: %v", votedBlockHash, err)
 		}
@@ -72,11 +72,13 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 		}
 		if totalVotes >= quorum {
 			// certify the block
-			blockNode.status = statusCertified
+			b.index.SetStatusFlags(blockNode, statusCertified)
 			// change the bestchain
+			b.chainLock.Lock()
 			if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 				return false, err
 			}
+			b.chainLock.Unlock()
 			log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
 			// refresh the committee
 			b.committeeAddrs, err = b.Committee()
@@ -118,11 +120,13 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 			}
 			if totalVotes >= quorum {
 				// certify the block
-				blockNode.status = statusCertified
+				b.index.SetStatusFlags(blockNode, statusCertified)
 				// change the bestchain
+				b.chainLock.Lock()
 				if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 					return false, err
 				}
+				b.chainLock.Unlock()
 				log.Infof("extension PSyncORazor: block %v has been certified", blockNode.hash)
 				return true, nil
 			} else {
@@ -147,9 +151,13 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 				curBlock := blockNode
 				for {
 					if !curBlock.status.KnownFinalized() {
-						curBlock.status = statusFinalized
+						b.index.SetStatusFlags(blockNode, statusFinalized)
 						log.Infof("extension PSyncORazor: block %v has been finalised", curBlock.hash)
-						curBlock = curBlock.parent
+						if curBlock.parent == nil {
+							break
+						} else {
+							curBlock = curBlock.parent
+						}
 					} else {
 						break
 					}

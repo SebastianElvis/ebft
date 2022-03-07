@@ -258,7 +258,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 				blockNode.timerFired = true
 				// block should be certified after 3\Delta
 				if !blockNode.status.KnownCertified() {
-					log.Errorf("extension SyncORazor: block %v has not been certified after 3 Delta", blockNode.hash)
+					log.Errorf("extension SyncORazor: block %v has not been certified after 3 Delta, with votes %v", blockNode.hash, blockNode.certifyVotes)
 					return
 				}
 				// if no block at the same height
@@ -271,9 +271,13 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 					curBlock := blockNode
 					for {
 						if !curBlock.status.KnownFinalized() {
-							curBlock.status = statusFinalized
+							b.index.SetStatusFlags(blockNode, statusFinalized)
 							log.Infof("extension SyncORazor: block %v has been finalised", curBlock.hash)
-							curBlock = curBlock.parent
+							if curBlock.parent == nil {
+								break
+							} else {
+								curBlock = curBlock.parent
+							}
 						} else {
 							log.Infof("extension SyncORazor: block %v and its ancestors have been finalised", blockNode.hash)
 							break

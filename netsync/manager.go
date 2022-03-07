@@ -830,13 +830,16 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		for _, addr := range sm.miningAddrs {
 			if _, ok := committee[addr.String()]; ok {
 				numAddrInCommittee += 1
-				msgVote := wire.MsgVote{
-					VotedBlockHash: *bmsg.block.Hash(),
-					Type:           wire.VTCertify,
-					Address:        addr.String(),
+				voteMsg := voteMsg{
+					vote: &wire.MsgVote{
+						VotedBlockHash: *bmsg.block.Hash(),
+						Type:           wire.VTCertify,
+						Address:        addr.String(),
+					},
+					peer: nil,
 				}
-				log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), msgVote)
-				sm.peerNotifier.BroadcastVote(&msgVote)
+				log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), voteMsg.vote)
+				sm.handleVoteMsg(&voteMsg)
 			}
 		}
 		if numAddrInCommittee == 0 {
@@ -898,7 +901,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
-	log.Debugf("received vote message %v", msg)
+	log.Debugf("received vote message %v from peer %v", msg.vote, msg.peer)
 
 	// forward vote to struct `BlockChain` to process
 	certified, err := sm.chain.ProcessVote(msg.vote)
@@ -910,7 +913,7 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	// forward the vote
 	sm.peerNotifier.BroadcastVote(msg.vote)
 
-	// in PSyncORazor,
+	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
 	if certified &&
 		msg.vote.Type == wire.VTCertify &&
 		sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
@@ -1437,13 +1440,16 @@ out:
 					for _, addr := range sm.miningAddrs {
 						if _, ok := committee[addr.String()]; ok {
 							numAddrInCommittee += 1
-							msgVote := wire.MsgVote{
-								VotedBlockHash: *msg.block.Hash(),
-								Type:           wire.VTCertify,
-								Address:        addr.String(),
+							voteMsg := voteMsg{
+								vote: &wire.MsgVote{
+									VotedBlockHash: *msg.block.Hash(),
+									Type:           wire.VTCertify,
+									Address:        addr.String(),
+								},
+								peer: nil,
 							}
-							log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), msgVote)
-							sm.peerNotifier.BroadcastVote(&msgVote)
+							log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), voteMsg.vote)
+							sm.handleVoteMsg(&voteMsg)
 						}
 					}
 					if numAddrInCommittee == 0 {
