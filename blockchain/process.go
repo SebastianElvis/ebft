@@ -284,7 +284,6 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 						}
 					}
 				} else {
-					// TODO (RH): bug here
 					log.Infof("extension SyncORazor: block %v has a concurrent block (with common ancestor %v) and thus cannot be finalised", blockNode.hash, commonAncestor.hash)
 				}
 			}

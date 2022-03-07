@@ -825,7 +825,6 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 			log.Warnf("Failed to get committee: %v", err)
 		}
 		// if in committee, construct and broadcast a certify vote
-		// TODO (RH): bug here
 		numAddrInCommittee := 0
 		for _, addr := range sm.miningAddrs {
 			if _, ok := committee[addr.String()]; ok {
@@ -1417,6 +1416,7 @@ out:
 				msg.reply <- peerID
 
 			case processBlockMsg:
+				// TODO (RH): returns very slowly
 				_, _, err := sm.chain.ProcessBlock(
 					msg.block, msg.flags)
 				if err != nil {
@@ -1435,7 +1435,6 @@ out:
 						log.Warnf("Failed to get committee: %v", err)
 					}
 					// if in committee, construct and broadcast a certify vote
-					// TODO (RH): bug here
 					numAddrInCommittee := 0
 					for _, addr := range sm.miningAddrs {
 						if _, ok := committee[addr.String()]; ok {
@@ -1455,6 +1454,11 @@ out:
 					if numAddrInCommittee == 0 {
 						log.Debugf("no address is in the commoittee upon block %v", msg.block.Hash())
 					}
+				}
+
+				msg.reply <- processBlockResponse{
+					isOrphan: false,
+					err:      nil,
 				}
 
 			case isCurrentMsg:
