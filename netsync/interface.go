@@ -26,7 +26,7 @@ type PeerNotifier interface {
 
 	TransactionConfirmed(tx *btcutil.Tx)
 
-	BroadcastVote(vote *wire.MsgVote)
+	Broadcast(msg wire.Message)
 }
 
 // Config is a configuration struct used to initialize a new SyncManager.

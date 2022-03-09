@@ -82,8 +82,9 @@ type headersMsg struct {
 // voteMsg packages a vote message and the peer it came from together so the
 // block handler has access to that information.
 type voteMsg struct {
-	vote *wire.MsgVote
-	peer *peerpkg.Peer
+	vote  *wire.MsgVote
+	peer  *peerpkg.Peer
+	reply chan struct{}
 }
 
 // notFoundMsg packages a bitcoin notfound message and the peer it came from
@@ -820,6 +821,9 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 	}
 
 	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+		// broadcast the block immediately
+		sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
+
 		committee, err := sm.chain.Committee()
 		if err != nil {
 			log.Warnf("Failed to get committee: %v", err)
@@ -910,7 +914,7 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	}
 
 	// forward the vote
-	sm.peerNotifier.BroadcastVote(msg.vote)
+	sm.peerNotifier.Broadcast(msg.vote)
 
 	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
 	if certified &&
@@ -921,7 +925,7 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 			Type:           wire.VTUniqueAnnounce,
 			Address:        sm.miningAddrs[0].String(),
 		}
-		sm.peerNotifier.BroadcastVote(&uniqueAnnounceVote)
+		sm.peerNotifier.Broadcast(&uniqueAnnounceVote)
 	}
 }
 
@@ -1395,6 +1399,7 @@ out:
 
 			case *voteMsg:
 				sm.handleVoteMsg(msg)
+				msg.reply <- struct{}{}
 
 			case *invMsg:
 				sm.handleInvMsg(msg)
@@ -1416,9 +1421,7 @@ out:
 				msg.reply <- peerID
 
 			case processBlockMsg:
-				// TODO (RH): returns very slowly
-				_, _, err := sm.chain.ProcessBlock(
-					msg.block, msg.flags)
+				_, _, err := sm.chain.ProcessBlock(msg.block, msg.flags)
 				if err != nil {
 					msg.reply <- processBlockResponse{
 						isOrphan: false,
@@ -1430,6 +1433,9 @@ out:
 
 				// broadcast vote
 				if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+					// broadcast the block immediately
+					sm.peerNotifier.Broadcast(msg.block.MsgBlock())
+
 					committee, err := sm.chain.Committee()
 					if err != nil {
 						log.Warnf("Failed to get committee: %v", err)

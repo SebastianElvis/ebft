@@ -1157,9 +1157,10 @@ func (s *server) BroadcastMessage(msg wire.Message, exclPeers ...*serverPeer) {
 	s.broadcast <- bmsg
 }
 
-// BroadcastVote sends the vote to all
-func (s *server) BroadcastVote(vote *wire.MsgVote) {
-	s.BroadcastMessage(vote)
+// Broadcast sends the message to all
+func (s *server) Broadcast(msg wire.Message) {
+	peerLog.Debugf("broadcasting message %v", msg)
+	s.BroadcastMessage(msg)
 }
 
 // ConnectedCount returns the number of currently connected peers.
