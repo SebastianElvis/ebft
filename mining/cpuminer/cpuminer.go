@@ -545,6 +545,8 @@ func (m *CPUMiner) NumWorkers() int32 {
 // generating a new block template.  When a block is solved, it is submitted.
 // The function returns a list of the hashes of generated blocks.
 func (m *CPUMiner) GenerateNBlocksToAddress(n uint32, addr string) ([]*chainhash.Hash, error) {
+	log.Debugf("Generating %d blocks to address %v via GenerateNBlocks", n, addr)
+
 	m.Lock()
 
 	// Respond with an error if server is already mining.
@@ -562,8 +564,6 @@ func (m *CPUMiner) GenerateNBlocksToAddress(n uint32, addr string) ([]*chainhash
 	go m.speedMonitor()
 
 	m.Unlock()
-
-	log.Tracef("Generating %d blocks to address %v", n, addr)
 
 	i := uint32(0)
 	blockHashes := make([]*chainhash.Hash, n)
@@ -637,6 +637,8 @@ func (m *CPUMiner) GenerateNBlocksToAddress(n uint32, addr string) ([]*chainhash
 // generating a new block template.  When a block is solved, it is submitted.
 // The function returns a list of the hashes of generated blocks.
 func (m *CPUMiner) GenerateNBlocks(n uint32) ([]*chainhash.Hash, error) {
+	log.Debugf("Generating %d blocks via GenerateNBlocks", n)
+
 	m.Lock()
 
 	// Respond with an error if server is already mining.
@@ -654,8 +656,6 @@ func (m *CPUMiner) GenerateNBlocks(n uint32) ([]*chainhash.Hash, error) {
 	go m.speedMonitor()
 
 	m.Unlock()
-
-	log.Tracef("Generating %d blocks", n)
 
 	i := uint32(0)
 	blockHashes := make([]*chainhash.Hash, n)

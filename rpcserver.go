@@ -944,7 +944,7 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 	if !s.cfg.ChainParams.GenerateSupported {
 		return nil, &btcjson.RPCError{
 			Code: btcjson.ErrRPCDifficulty,
-			Message: fmt.Sprintf("No support for `generate` on "+
+			Message: fmt.Sprintf("No support for `generatetoaddress` on "+
 				"the current network, %s, as it's unlikely to "+
 				"be possible to mine a block with the CPU.",
 				s.cfg.ChainParams.Net),
@@ -969,7 +969,9 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 		}
 	}
 
+	// TODO (RH): bug here. The function seems never triggered on Docker
 	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
+	minrLog.Debugf("have generated %d blocks via generatetoaddress", c.NumBlocks)
 	if err != nil {
 		return nil, &btcjson.RPCError{
 			Code:    btcjson.ErrRPCInternal.Code,
