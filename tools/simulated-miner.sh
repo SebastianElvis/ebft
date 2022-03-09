@@ -13,7 +13,7 @@ do
     r=$(($RANDOM % $committee_size))
     addr=${x[$r]}
     btcctl --simnet --rpcuser=USER --rpcpass=PASS generatetoaddress 1 $addr
-    echo "Generated block #$i to address $addr"
+    echo "Generated block #$i to the $r-th address $addr"
     i=$((i+1))
     sleep $interval
 done

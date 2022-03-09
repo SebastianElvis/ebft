@@ -36,22 +36,10 @@ services:
     networks:
       vpcbr:
         ipv4_address: 10.6.0.14
-  # wallet:
-  #   image: orazor-dev/btcd
-  #   command: btcwallet --simnet --rpcconnect=10.6.0.11:18556 --username=USER --password=PASS
-  #   cap_add:
-  #     - ALL
-  #   ports:
-  #     - "18554:18554"
-  #     - "18555:18555"
-  #     - "18556:18556"
-  #   networks:
-  #     vpcbr:
-  #       ipv4_address: 10.6.0.15
 
 networks:
   vpcbr:
-    driver: bridge
+    driver: macvlan
     ipam:
       config:
         - subnet: 10.6.0.0/16

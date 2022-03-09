@@ -1159,7 +1159,8 @@ func (s *server) BroadcastMessage(msg wire.Message, exclPeers ...*serverPeer) {
 
 // Broadcast sends the message to all
 func (s *server) Broadcast(msg wire.Message) {
-	peerLog.Debugf("broadcasting message %v", msg)
+	// TODO (RH): bug here
+	peerLog.Debugf("broadcasting %s message %v", msg.Command(), msg)
 	s.BroadcastMessage(msg)
 }
 
