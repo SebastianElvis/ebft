@@ -262,6 +262,14 @@ func readElement(r io.Reader, element interface{}) error {
 		}
 		return nil
 
+	// address
+	case *[34]byte:
+		_, err := io.ReadFull(r, e[:])
+		if err != nil {
+			return err
+		}
+		return nil
+
 	// Message header command.
 	case *[CommandSize]uint8:
 		_, err := io.ReadFull(r, e[:])
@@ -299,6 +307,14 @@ func readElement(r io.Reader, element interface{}) error {
 			return err
 		}
 		*e = InvType(rv)
+		return nil
+
+	case *VoteType:
+		rv, err := binarySerializer.Uint32(r, littleEndian)
+		if err != nil {
+			return err
+		}
+		*e = VoteType(rv)
 		return nil
 
 	case *BitcoinNet:
@@ -396,6 +412,14 @@ func writeElement(w io.Writer, element interface{}) error {
 		}
 		return nil
 
+	// Address
+	case [34]byte:
+		_, err := w.Write(e[:])
+		if err != nil {
+			return err
+		}
+		return nil
+
 	// Message header command.
 	case [CommandSize]uint8:
 		_, err := w.Write(e[:])
@@ -427,6 +451,13 @@ func writeElement(w io.Writer, element interface{}) error {
 		return nil
 
 	case InvType:
+		err := binarySerializer.PutUint32(w, littleEndian, uint32(e))
+		if err != nil {
+			return err
+		}
+		return nil
+
+	case VoteType:
 		err := binarySerializer.PutUint32(w, littleEndian, uint32(e))
 		if err != nil {
 			return err

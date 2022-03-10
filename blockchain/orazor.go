@@ -15,7 +15,6 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 	votedBlockHash := vote.VotedBlockHash
 	voteType := vote.Type
 	addr := vote.Address
-	log.Debugf("received %v vote on block %v from %v", voteType.String(), votedBlockHash, addr)
 
 	// signature := vote.Signature
 	// // verify signature
@@ -43,13 +42,13 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 		// quorum
 		quorum := b.chainParams.CommitteeSize*1/2 + 1
 		// SyncORazor does not have UniqueAnnounce
-		if voteType == wire.VTUniqueAnnounce {
-			return false, fmt.Errorf("wrong vote type in SyncORazor-simnet: VTUniqueAnnounce")
+		if voteType != wire.VTCertify {
+			return false, fmt.Errorf("wrong vote type in SyncORazor-simnet: %s", voteType.String())
 		}
 		// get the block
 		block, err := b.BlockByHashNoMainChain(&votedBlockHash)
 		if err != nil {
-			return false, fmt.Errorf("block %v does not exist: %v", votedBlockHash, err)
+			return false, fmt.Errorf("voted block %v does not exist: %v", votedBlockHash, err)
 		}
 		// get the blockNode
 		blockNode := b.index.LookupNode(&votedBlockHash)

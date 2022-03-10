@@ -511,6 +511,11 @@ func (sm *SyncManager) shouldDCStalledSyncPeer() bool {
 // the current sync peer, attempts to select a new best peer to sync from.  It
 // is invoked from the syncHandler goroutine.
 func (sm *SyncManager) handleDonePeerMsg(peer *peerpkg.Peer) {
+	// TODO (RH): skip persistent peer
+	if true {
+		return
+	}
+
 	state, exists := sm.peerStates[peer]
 	if !exists {
 		log.Warnf("Received done peer message for unknown peer %s", peer)
@@ -674,15 +679,17 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 
 	log.Debugf("received block %v from peer %v", bmsg.block.Hash(), peer.Addr())
 
-	// If we didn't ask for this block then the peer is misbehaving.
 	blockHash := bmsg.block.Hash()
+
+	// In non-simnet, if we didn't ask for this block then the peer is misbehaving.
+	// The regression test intentionally sends some blocks twice
+	//   to test duplicate block insertion fails.  Don't disconnect
+	//   the peer or ignore the block when we're in regression test
+	//   mode in this case so the chain code is actually fed the
+	//   duplicate blocks.
+	// Crystal and ORazor requires broadcasting blocks actively
 	if _, exists = state.requestedBlocks[*blockHash]; !exists {
-		// The regression test intentionally sends some blocks twice
-		// to test duplicate block insertion fails.  Don't disconnect
-		// the peer or ignore the block when we're in regression test
-		// mode in this case so the chain code is actually fed the
-		// duplicate blocks.
-		if sm.chainParams != &chaincfg.RegressionNetParams {
+		if sm.chainParams.Net != wire.TestNet && sm.chainParams.Net != wire.SimNet {
 			log.Warnf("Got unrequested block %v from %s -- "+
 				"disconnecting", blockHash, peer.Addr())
 			peer.Disconnect()
@@ -728,9 +735,14 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		// rejected as opposed to something actually going wrong, so log
 		// it as such.  Otherwise, something really did go wrong, so log
 		// it as an actual error.
-		if _, ok := err.(blockchain.RuleError); ok {
-			log.Infof("Rejected block %v from %s: %v", blockHash,
-				peer, err)
+		if ruleErr, ok := err.(blockchain.RuleError); ok {
+			if ruleErr.ErrorCode == blockchain.ErrDuplicateBlock {
+				// if the block is duplicated, skip it directly
+				return
+			} else {
+				log.Infof("Rejected block %v from %s: %v", blockHash,
+					peer, err)
+			}
 		} else {
 			log.Errorf("Failed to process block %v: %v",
 				blockHash, err)
@@ -904,28 +916,35 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
-	log.Debugf("received vote message %v from peer %v", msg.vote, msg.peer)
-
-	// forward vote to struct `BlockChain` to process
-	certified, err := sm.chain.ProcessVote(msg.vote)
-	if err != nil {
-		log.Warnf("Failed to process vote message %v: %v", msg.vote, err)
-		return
+	// this vote is from the node itself
+	if msg.peer == nil {
+		log.Debugf("broadcast %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
+		// broadcast the vote
+		// TODO (RH): bug here. each node can only receive 2 out of 4 votes
+		sm.peerNotifier.Broadcast(msg.vote)
+	} else {
+		log.Debugf("received %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
 	}
 
-	// forward the vote
-	sm.peerNotifier.Broadcast(msg.vote)
+	// process the vote
+	certified, err := sm.chain.ProcessVote(msg.vote)
+	if err != nil {
+		log.Errorf("Failed to process vote message %v: %v", msg.vote, err)
+		return
+	}
 
 	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
 	if certified &&
 		msg.vote.Type == wire.VTCertify &&
 		sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
-		uniqueAnnounceVote := wire.MsgVote{
-			VotedBlockHash: msg.vote.VotedBlockHash,
-			Type:           wire.VTUniqueAnnounce,
-			Address:        sm.miningAddrs[0].String(),
+		for _, addr := range sm.miningAddrs {
+			uniqueAnnounceVote := wire.MsgVote{
+				VotedBlockHash: msg.vote.VotedBlockHash,
+				Type:           wire.VTUniqueAnnounce,
+				Address:        addr.String(),
+			}
+			sm.peerNotifier.Broadcast(&uniqueAnnounceVote)
 		}
-		sm.peerNotifier.Broadcast(&uniqueAnnounceVote)
 	}
 }
 
@@ -1421,11 +1440,19 @@ out:
 				msg.reply <- peerID
 
 			case processBlockMsg:
-				_, _, err := sm.chain.ProcessBlock(msg.block, msg.flags)
-				if err != nil {
-					msg.reply <- processBlockResponse{
-						isOrphan: false,
-						err:      err,
+				if _, _, err := sm.chain.ProcessBlock(msg.block, msg.flags); err != nil {
+					if ruleErr, ok := err.(blockchain.RuleError); ok && ruleErr.ErrorCode != blockchain.ErrDuplicateBlock {
+						msg.reply <- processBlockResponse{
+							isOrphan: false,
+							err:      nil,
+						}
+						continue
+					} else {
+						msg.reply <- processBlockResponse{
+							isOrphan: false,
+							err:      err,
+						}
+						continue
 					}
 				}
 
@@ -1636,7 +1663,6 @@ func (sm *SyncManager) QueueVote(vote *wire.MsgVote, peer *peerpkg.Peer) {
 		return
 	}
 	msgVote := voteMsg{vote: vote, peer: peer}
-	log.Debugf("Queue vote message %v", msgVote)
 	sm.msgChan <- &msgVote
 }
 
