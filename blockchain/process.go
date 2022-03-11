@@ -290,15 +290,5 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 		}()
 	}
 
-	// Refresh committee
-	if b.chainParams.Extension != chaincfg.ExtNone {
-		b.committeeAddrs, err = b.Committee()
-		if err != nil {
-			log.Debugf("refresh committee upon new block %v", blockHash)
-			return false, false, err
-		}
-		log.Debugf("refreshed committee: %v", b.committeeAddrs)
-	}
-
 	return isMainChain, false, nil
 }

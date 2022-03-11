@@ -660,10 +660,10 @@ func (s *server) handleAddPeerMsg(state *peerState, sp *serverPeer) bool {
 // handleDonePeerMsg deals with peers that have signalled they are done.  It is
 // invoked from the peerHandler goroutine.
 func (s *server) handleDonePeerMsg(state *peerState, sp *serverPeer) {
-	// TODO (RH): do not disconnect persistent peers
-	if true {
-		return
-	}
+	// TODO (RH, non-urgent): do not disconnect persistent peers
+	// if true {
+	// 	return
+	// }
 
 	var list map[int32]*serverPeer
 	if sp.Inbound() {
@@ -788,6 +788,12 @@ func (s *server) handleBroadcastMsg(state *peerState, bmsg *broadcastMsg) {
 			}
 		}
 
+		// broadcast in the blocking way
+		// doneChan := make(chan struct{}, 1)
+		// sp.QueueMessage(bmsg.message, doneChan)
+		// <-doneChan
+
+		// broadcast in the non-blocking way
 		sp.QueueMessage(bmsg.message, nil)
 	})
 }

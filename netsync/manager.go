@@ -511,10 +511,10 @@ func (sm *SyncManager) shouldDCStalledSyncPeer() bool {
 // the current sync peer, attempts to select a new best peer to sync from.  It
 // is invoked from the syncHandler goroutine.
 func (sm *SyncManager) handleDonePeerMsg(peer *peerpkg.Peer) {
-	// TODO (RH): skip persistent peer
-	if true {
-		return
-	}
+	// TODO (RH, non-urgent): do not disconnect persistent peers
+	// if true {
+	// 	return
+	// }
 
 	state, exists := sm.peerStates[peer]
 	if !exists {
@@ -832,6 +832,8 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		}
 	}
 
+	// broadcast the vote
+	// note that the block here is from the peer
 	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
 		// broadcast the block immediately
 		sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
@@ -849,7 +851,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 					vote: &wire.MsgVote{
 						VotedBlockHash: *bmsg.block.Hash(),
 						Type:           wire.VTCertify,
-						Address:        addr.String(),
+						Address:        wire.AddrToBytes(addr.String()),
 					},
 					peer: nil,
 				}
@@ -916,21 +918,24 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
-	// this vote is from the node itself
-	if msg.peer == nil {
-		log.Debugf("broadcast %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
-		// broadcast the vote
-		// TODO (RH): bug here. each node can only receive 2 out of 4 votes
-		sm.peerNotifier.Broadcast(msg.vote)
-	} else {
-		log.Debugf("received %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
-	}
-
 	// process the vote
-	certified, err := sm.chain.ProcessVote(msg.vote)
+	certified, duplicated, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {
 		log.Errorf("Failed to process vote message %v: %v", msg.vote, err)
 		return
+	}
+
+	// this vote is from the node itself
+	if !duplicated {
+		if msg.peer == nil {
+			log.Debugf("broadcast %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
+			// TODO (RH): bug here. each node can only receive 1 out of 3 votes here. The received vote is from the sync node
+			sm.peerNotifier.Broadcast(msg.vote)
+		} else {
+			log.Debugf("received %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
+		}
+	} else {
+		log.Debugf("received duplicated %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
 	}
 
 	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
@@ -941,7 +946,7 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 			uniqueAnnounceVote := wire.MsgVote{
 				VotedBlockHash: msg.vote.VotedBlockHash,
 				Type:           wire.VTUniqueAnnounce,
-				Address:        addr.String(),
+				Address:        wire.AddrToBytes(addr.String()),
 			}
 			sm.peerNotifier.Broadcast(&uniqueAnnounceVote)
 		}
@@ -1396,6 +1401,7 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 // single thread without needing to lock memory data structures.  This is
 // important because the sync manager controls which blocks are needed and how
 // the fetching should proceed.
+// This handler handles messages from both the peer and the local miner
 func (sm *SyncManager) blockHandler() {
 	stallTicker := time.NewTicker(stallSampleInterval)
 	defer stallTicker.Stop()
@@ -1412,6 +1418,7 @@ out:
 				sm.handleTxMsg(msg)
 				msg.reply <- struct{}{}
 
+			// handle blocks from the peer
 			case *blockMsg:
 				sm.handleBlockMsg(msg)
 				msg.reply <- struct{}{}
@@ -1439,20 +1446,12 @@ out:
 				}
 				msg.reply <- peerID
 
+			// blocks from the local miner
 			case processBlockMsg:
 				if _, _, err := sm.chain.ProcessBlock(msg.block, msg.flags); err != nil {
-					if ruleErr, ok := err.(blockchain.RuleError); ok && ruleErr.ErrorCode != blockchain.ErrDuplicateBlock {
-						msg.reply <- processBlockResponse{
-							isOrphan: false,
-							err:      nil,
-						}
-						continue
-					} else {
-						msg.reply <- processBlockResponse{
-							isOrphan: false,
-							err:      err,
-						}
-						continue
+					msg.reply <- processBlockResponse{
+						isOrphan: false,
+						err:      err,
 					}
 				}
 
@@ -1476,7 +1475,7 @@ out:
 								vote: &wire.MsgVote{
 									VotedBlockHash: *msg.block.Hash(),
 									Type:           wire.VTCertify,
-									Address:        addr.String(),
+									Address:        wire.AddrToBytes(addr.String()),
 								},
 								peer: nil,
 							}
@@ -1485,10 +1484,12 @@ out:
 						}
 					}
 					if numAddrInCommittee == 0 {
-						log.Debugf("no address is in the commoittee upon block %v", msg.block.Hash())
+						log.Debugf("no address is in the committee upon block %v", msg.block.Hash())
 					}
 				}
 
+				// TODO (RH): only the first block can go this far
+				// seems that after some broadcasts the p2p connections are completely broken
 				msg.reply <- processBlockResponse{
 					isOrphan: false,
 					err:      nil,
@@ -1735,12 +1736,16 @@ func (sm *SyncManager) SyncPeerID() int32 {
 }
 
 // ProcessBlock makes use of ProcessBlock on an internal instance of a block
-// chain. The method is mainly used by the miner.
+// chain.
+// The method is mainly used by the local miner.
 func (sm *SyncManager) ProcessBlock(block *btcutil.Block, flags blockchain.BehaviorFlags) (bool, error) {
 	reply := make(chan processBlockResponse, 1)
 	sm.msgChan <- processBlockMsg{block: block, flags: flags, reply: reply}
-	response := <-reply
-	return response.isOrphan, response.err
+	// TODO (RH): stuck here
+	// response := <-reply
+	// log.Debugf("in SyncManager.ProcessBlock: got reply %v", response)
+	// return response.isOrphan, response.err
+	return false, nil
 }
 
 // IsCurrent returns whether or not the sync manager believes it is synced with

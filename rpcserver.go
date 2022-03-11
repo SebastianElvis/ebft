@@ -969,7 +969,6 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 		}
 	}
 
-	// TODO (RH): bug here. The function seems never triggered on Docker
 	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
 	minrLog.Debugf("have generated %d blocks via generatetoaddress", c.NumBlocks)
 	if err != nil {

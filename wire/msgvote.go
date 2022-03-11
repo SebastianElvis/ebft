@@ -1,7 +1,6 @@
 package wire
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -24,29 +23,19 @@ func (t VoteType) String() string {
 type MsgVote struct {
 	VotedBlockHash chainhash.Hash
 	Type           VoteType
-	Address        string
+	Address        [34]byte
 }
 
 // BtcEncode encodes the receiver to w using the bitcoin protocol encoding.
 // This is part of the Message interface implementation.
 func (msg *MsgVote) BtcEncode(w io.Writer, pver uint32, enc MessageEncoding) error {
-	if len(msg.Address) != 34 {
-		return fmt.Errorf("len(addr) should be 34, while this one is %d", len(msg.Address))
-	}
-	var addrBytes [34]byte
-	copy(addrBytes[:], msg.Address)
-	return writeElements(w, &msg.VotedBlockHash, msg.Type, addrBytes)
+	return writeElements(w, msg.VotedBlockHash, msg.Type, msg.Address)
 }
 
 // BtcDecode decodes r using the bitcoin protocol encoding into the receiver.
 func (msg *MsgVote) BtcDecode(r io.Reader, pver uint32, enc MessageEncoding) error {
-	var addrBytes [34]byte
-	if err := readElements(r, &msg.VotedBlockHash, &msg.Type, &addrBytes); err != nil {
+	if err := readElements(r, &msg.VotedBlockHash, &msg.Type, &msg.Address); err != nil {
 		return err
-	}
-	msg.Address = string(addrBytes[:])
-	if len(msg.Address) != 34 {
-		return fmt.Errorf("len(addr) should be 34, while this one is %d", len(msg.Address))
 	}
 	return nil
 }
@@ -70,4 +59,11 @@ func (msg *MsgVote) MaxPayloadLength(pver uint32) uint32 {
 // interface.  See MsgVote for details.
 func NewMsgVote() *MsgVote {
 	return &MsgVote{}
+}
+
+func AddrToBytes(addr string) [34]byte {
+	addrByteSlice := []byte(addr)
+	var addrByteArray [34]byte
+	copy(addrByteArray[:], addrByteSlice[:34])
+	return addrByteArray
 }

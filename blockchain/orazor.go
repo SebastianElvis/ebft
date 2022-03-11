@@ -7,14 +7,17 @@ import (
 	"github.com/btcsuite/btcd/wire"
 )
 
-func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
+func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, bool, error) {
+	b.chainLock.Lock()
+	defer b.chainLock.Unlock()
+
 	if b.chainParams.Extension != chaincfg.ExtSyncORazor && b.chainParams.Extension != chaincfg.ExtPSyncORazor {
-		return false, fmt.Errorf("vote message cam only exist with extension ExtSyncORazor or ExtPSyncORazor")
+		return false, false, fmt.Errorf("vote message cam only exist with extension ExtSyncORazor or ExtPSyncORazor")
 	}
 
 	votedBlockHash := vote.VotedBlockHash
 	voteType := vote.Type
-	addr := vote.Address
+	addr := string(vote.Address[:])
 
 	// signature := vote.Signature
 	// // verify signature
@@ -31,11 +34,11 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 
 	committee, err := b.Committee()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	// the voter should be a part of the committee
 	if _, ok := committee[addr]; !ok {
-		return false, fmt.Errorf("voter %v is not a part of the committee", addr)
+		return false, false, fmt.Errorf("voter %v is not a part of the committee", addr)
 	}
 
 	if b.chainParams.Extension == chaincfg.ExtSyncORazor {
@@ -43,24 +46,24 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 		quorum := b.chainParams.CommitteeSize*1/2 + 1
 		// SyncORazor does not have UniqueAnnounce
 		if voteType != wire.VTCertify {
-			return false, fmt.Errorf("wrong vote type in SyncORazor-simnet: %s", voteType.String())
+			return false, false, fmt.Errorf("wrong vote type in SyncORazor-simnet: %s", voteType.String())
 		}
 		// get the block
 		block, err := b.BlockByHashNoMainChain(&votedBlockHash)
 		if err != nil {
-			return false, fmt.Errorf("voted block %v does not exist: %v", votedBlockHash, err)
+			return false, false, fmt.Errorf("voted block %v does not exist: %v", votedBlockHash, err)
 		}
 		// get the blockNode
 		blockNode := b.index.LookupNode(&votedBlockHash)
 		// if the block is already certified or finalised, return nil directly
 		if blockNode.status.KnownCertified() {
-			return false, fmt.Errorf("block %v is already certified or finalised", votedBlockHash)
+			return false, false, fmt.Errorf("block %v is already certified or finalised", votedBlockHash)
 		}
 		// add vote
 		if _, ok := blockNode.certifyVotes[addr]; !ok {
 			blockNode.certifyVotes[addr] = vote
 		} else {
-			return false, fmt.Errorf("vote %v is received more than once", vote)
+			return false, true, nil
 		}
 		// if meet the certify requirement, certify the block
 		var totalVotes uint32 = 0
@@ -73,20 +76,18 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 			// certify the block
 			b.index.SetStatusFlags(blockNode, statusCertified)
 			// change the bestchain
-			b.chainLock.Lock()
 			if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
-				return false, err
+				return false, false, err
 			}
-			b.chainLock.Unlock()
 			log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
 			// refresh the committee
 			b.committeeAddrs, err = b.Committee()
 			if err != nil {
-				return false, fmt.Errorf("refresh committee upon new block %v", votedBlockHash)
+				return false, false, fmt.Errorf("refresh committee upon new block %v", votedBlockHash)
 			}
-			return true, nil
+			return true, false, nil
 		} else {
-			return false, nil
+			return false, false, nil
 		}
 	} else if b.chainParams.Extension == chaincfg.ExtPSyncORazor {
 		// quorum size
@@ -94,7 +95,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 		// get the block
 		block, err := b.BlockByHash(&votedBlockHash)
 		if err != nil {
-			return false, fmt.Errorf("block %v does not exist: %v", votedBlockHash, err)
+			return false, false, fmt.Errorf("block %v does not exist: %v", votedBlockHash, err)
 		}
 		// get the blockNode
 		blockNode := b.index.LookupNode(&votedBlockHash)
@@ -102,13 +103,13 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 		if voteType == wire.VTCertify {
 			// if the block is already certified or finalised, return nil directly
 			if blockNode.status.KnownCertified() {
-				return false, fmt.Errorf("block %v is already certified or finalised", votedBlockHash)
+				return false, false, fmt.Errorf("block %v is already certified or finalised", votedBlockHash)
 			}
 			// add vote
 			if _, ok := blockNode.certifyVotes[addr]; !ok {
 				blockNode.certifyVotes[addr] = vote
 			} else {
-				return false, fmt.Errorf("vote %v is received more than once", vote)
+				return false, true, nil
 			}
 			// if meet the certify requirement, certify the block
 			var totalVotes uint32 = 0
@@ -121,22 +122,20 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 				// certify the block
 				b.index.SetStatusFlags(blockNode, statusCertified)
 				// change the bestchain
-				b.chainLock.Lock()
 				if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
-					return false, err
+					return false, false, err
 				}
-				b.chainLock.Unlock()
 				log.Infof("extension PSyncORazor: block %v has been certified", blockNode.hash)
-				return true, nil
+				return true, false, nil
 			} else {
-				return false, nil
+				return false, false, nil
 			}
 		} else if voteType == wire.VTUniqueAnnounce {
 			// add vote
 			if _, ok := blockNode.uniqueAnnounceVotes[addr]; !ok {
 				blockNode.uniqueAnnounceVotes[addr] = vote
 			} else {
-				return false, fmt.Errorf("vote %v is received more than once", vote)
+				return false, true, nil
 			}
 			// if meet the finalisation requirement, finalise all blocks before this block
 			var totalVotes uint32 = 0
@@ -161,11 +160,11 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, error) {
 						break
 					}
 				}
-				return true, nil
+				return true, false, nil
 			}
 		}
 	} else {
-		return false, fmt.Errorf("wrong network: %s", b.chainParams.Name)
+		return false, false, fmt.Errorf("wrong network: %s", b.chainParams.Name)
 	}
-	return false, nil
+	return false, false, nil
 }
