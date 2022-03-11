@@ -171,6 +171,7 @@ func (m *CPUMiner) submitBlock(block *btcutil.Block) bool {
 	// Process this block using the same rules as blocks coming from other
 	// nodes.  This will in turn relay it to the network like normal.
 	// instantiated by SyncManager.ProcessBlock()
+	// TODO (RH): stuck here!
 	isOrphan, err := m.cfg.ProcessBlock(block, blockchain.BFNone)
 	if err != nil {
 		// Anything other than a rule violation is an unexpected error,
@@ -589,8 +590,7 @@ func (m *CPUMiner) GenerateNBlocksToAddress(n uint32, addr string) ([]*chainhash
 		m.submitBlockLock.Lock()
 		curHeight := m.g.BestSnapshot().Height
 
-		// Choose a payment address at random.
-		rand.Seed(time.Now().UnixNano())
+		// decode address
 		payToAddr, err := btcutil.DecodeAddress(addr, m.cfg.ChainParams)
 		if err != nil {
 			log.Errorf("Failed to decode address %v: %v", addr, err)

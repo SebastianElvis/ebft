@@ -8,9 +8,6 @@ import (
 )
 
 func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, bool, error) {
-	b.chainLock.Lock()
-	defer b.chainLock.Unlock()
-
 	if b.chainParams.Extension != chaincfg.ExtSyncORazor && b.chainParams.Extension != chaincfg.ExtPSyncORazor {
 		return false, false, fmt.Errorf("vote message cam only exist with extension ExtSyncORazor or ExtPSyncORazor")
 	}
@@ -63,6 +60,7 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 		if _, ok := blockNode.certifyVotes[addr]; !ok {
 			blockNode.certifyVotes[addr] = vote
 		} else {
+			// duplicated vote, skip
 			return false, true, nil
 		}
 		// if meet the certify requirement, certify the block
@@ -76,9 +74,11 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 			// certify the block
 			b.index.SetStatusFlags(blockNode, statusCertified)
 			// change the bestchain
+			b.chainLock.Lock()
 			if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 				return false, false, err
 			}
+			b.chainLock.Unlock()
 			log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
 			// refresh the committee
 			b.committeeAddrs, err = b.Committee()
@@ -122,9 +122,11 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 				// certify the block
 				b.index.SetStatusFlags(blockNode, statusCertified)
 				// change the bestchain
+				b.chainLock.Lock()
 				if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
 					return false, false, err
 				}
+				b.chainLock.Unlock()
 				log.Infof("extension PSyncORazor: block %v has been certified", blockNode.hash)
 				return true, false, nil
 			} else {

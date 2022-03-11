@@ -82,9 +82,9 @@ type headersMsg struct {
 // voteMsg packages a vote message and the peer it came from together so the
 // block handler has access to that information.
 type voteMsg struct {
-	vote  *wire.MsgVote
-	peer  *peerpkg.Peer
-	reply chan struct{}
+	vote *wire.MsgVote
+	peer *peerpkg.Peer
+	// reply chan struct{}
 }
 
 // notFoundMsg packages a bitcoin notfound message and the peer it came from
@@ -847,16 +847,18 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		for _, addr := range sm.miningAddrs {
 			if _, ok := committee[addr.String()]; ok {
 				numAddrInCommittee += 1
-				voteMsg := voteMsg{
-					vote: &wire.MsgVote{
-						VotedBlockHash: *bmsg.block.Hash(),
-						Type:           wire.VTCertify,
-						Address:        wire.AddrToBytes(addr.String()),
-					},
-					peer: nil,
+				vote := wire.MsgVote{
+					VotedBlockHash: *bmsg.block.Hash(),
+					Type:           wire.VTCertify,
+					Address:        wire.AddrToBytes(addr.String()),
 				}
-				log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), voteMsg.vote)
-				sm.handleVoteMsg(&voteMsg)
+				log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), vote)
+				// process and broadcast vote
+				_, _, err := sm.chain.ProcessVote(&vote)
+				if err != nil {
+					log.Warnf("Failed to process vote: %v", vote)
+				}
+				sm.peerNotifier.Broadcast(&vote)
 			}
 		}
 		if numAddrInCommittee == 0 {
@@ -919,24 +921,19 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	// process the vote
+	log.Debugf("in handleVoteMsg: start sm.chain.ProcessVote %v", msg.vote)
 	certified, duplicated, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {
-		log.Errorf("Failed to process vote message %v: %v", msg.vote, err)
+		log.Errorf("in handleVoteMsg: failed to process vote message %v: %v", msg.vote, err)
 		return
 	}
 
-	// this vote is from the node itself
-	if !duplicated {
-		if msg.peer == nil {
-			log.Debugf("broadcast %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
-			// TODO (RH): bug here. each node can only receive 1 out of 3 votes here. The received vote is from the sync node
-			sm.peerNotifier.Broadcast(msg.vote)
-		} else {
-			log.Debugf("received %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
-		}
-	} else {
-		log.Debugf("received duplicated %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
+	if duplicated {
+		log.Errorf("in handleVoteMsg: received duplicated %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
+		return
 	}
+
+	log.Debugf("in handleVoteMsg: finished sm.chain.ProcessVote %v", msg.vote)
 
 	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
 	if certified &&
@@ -1425,7 +1422,8 @@ out:
 
 			case *voteMsg:
 				sm.handleVoteMsg(msg)
-				msg.reply <- struct{}{}
+				// TODO (RH): fuck this is the issue!
+				// msg.reply <- struct{}{}
 
 			case *invMsg:
 				sm.handleInvMsg(msg)
@@ -1453,9 +1451,10 @@ out:
 						isOrphan: false,
 						err:      err,
 					}
+					log.Debugf("in case processBlockMsg: block %v fails sm.chain.ProcessBlock", msg.block.Hash())
 				}
 
-				log.Debugf("received block %v from local miner", msg.block.Hash())
+				log.Debugf("in case processBlockMsg: block %v has passed sm.chain.ProcessBlock", msg.block.Hash())
 
 				// broadcast vote
 				if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
@@ -1471,16 +1470,18 @@ out:
 					for _, addr := range sm.miningAddrs {
 						if _, ok := committee[addr.String()]; ok {
 							numAddrInCommittee += 1
-							voteMsg := voteMsg{
-								vote: &wire.MsgVote{
-									VotedBlockHash: *msg.block.Hash(),
-									Type:           wire.VTCertify,
-									Address:        wire.AddrToBytes(addr.String()),
-								},
-								peer: nil,
+							vote := wire.MsgVote{
+								VotedBlockHash: *msg.block.Hash(),
+								Type:           wire.VTCertify,
+								Address:        wire.AddrToBytes(addr.String()),
 							}
-							log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), voteMsg.vote)
-							sm.handleVoteMsg(&voteMsg)
+							log.Debugf("in case processBlockMsg: miner %v is in the committee, process and broadcast certify vote message %v", addr.String(), vote)
+							// process and broadcast vote
+							_, _, err := sm.chain.ProcessVote(&vote)
+							if err != nil {
+								log.Warnf("Failed to process vote: %v", vote)
+							}
+							sm.peerNotifier.Broadcast(&vote)
 						}
 					}
 					if numAddrInCommittee == 0 {
@@ -1494,6 +1495,7 @@ out:
 					isOrphan: false,
 					err:      nil,
 				}
+				log.Debugf("in case processBlockMsg: replied")
 
 			case isCurrentMsg:
 				msg.reply <- sm.current()
@@ -1663,8 +1665,8 @@ func (sm *SyncManager) QueueVote(vote *wire.MsgVote, peer *peerpkg.Peer) {
 	if atomic.LoadInt32(&sm.shutdown) != 0 {
 		return
 	}
-	msgVote := voteMsg{vote: vote, peer: peer}
-	sm.msgChan <- &msgVote
+
+	sm.msgChan <- &voteMsg{vote: vote, peer: peer}
 }
 
 // QueueHeaders adds the passed headers message and peer to the block handling
@@ -1742,10 +1744,8 @@ func (sm *SyncManager) ProcessBlock(block *btcutil.Block, flags blockchain.Behav
 	reply := make(chan processBlockResponse, 1)
 	sm.msgChan <- processBlockMsg{block: block, flags: flags, reply: reply}
 	// TODO (RH): stuck here
-	// response := <-reply
-	// log.Debugf("in SyncManager.ProcessBlock: got reply %v", response)
-	// return response.isOrphan, response.err
-	return false, nil
+	response := <-reply
+	return response.isOrphan, response.err
 }
 
 // IsCurrent returns whether or not the sync manager believes it is synced with
