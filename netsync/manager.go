@@ -1422,7 +1422,7 @@ out:
 
 			case *voteMsg:
 				sm.handleVoteMsg(msg)
-				// TODO (RH): fuck this is the issue!
+				// TODO (RH): this is the issue!
 				// msg.reply <- struct{}{}
 
 			case *invMsg:
