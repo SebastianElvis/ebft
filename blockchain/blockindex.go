@@ -134,13 +134,15 @@ type blockNode struct {
 // initially creating a node.
 func initBlockNode(node *blockNode, blockHeader *wire.BlockHeader, parent *blockNode) {
 	*node = blockNode{
-		hash:       blockHeader.BlockHash(),
-		workSum:    CalcWork(blockHeader.Bits),
-		version:    blockHeader.Version,
-		bits:       blockHeader.Bits,
-		nonce:      blockHeader.Nonce,
-		timestamp:  blockHeader.Timestamp.Unix(),
-		merkleRoot: blockHeader.MerkleRoot,
+		hash:                blockHeader.BlockHash(),
+		workSum:             CalcWork(blockHeader.Bits),
+		version:             blockHeader.Version,
+		bits:                blockHeader.Bits,
+		nonce:               blockHeader.Nonce,
+		timestamp:           blockHeader.Timestamp.Unix(),
+		merkleRoot:          blockHeader.MerkleRoot,
+		certifyVotes:        map[string]*wire.MsgVote{},
+		uniqueAnnounceVotes: map[string]*wire.MsgVote{},
 	}
 	if parent != nil {
 		node.parent = parent

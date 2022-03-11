@@ -41,7 +41,7 @@ const (
 	defaultLogLevel              = "info"
 	defaultLogDirname            = "logs"
 	defaultLogFilename           = "btcd.log"
-	defaultMaxPeers              = 125
+	defaultMaxPeers              = 128
 	defaultBanDuration           = time.Hour * 24
 	defaultBanThreshold          = 100
 	defaultConnectTimeout        = time.Second * 30
@@ -652,7 +652,7 @@ func loadConfig() (*config, []string, error) {
 			return nil, nil, err
 		}
 		chainParams := chaincfg.CustomExtSimNetParams(
-			chaincfg.ExtSyncORazor,
+			chaincfg.ExtPSyncORazor,
 			cfg.CommitteeSize,
 			cfg.Latency,
 		)

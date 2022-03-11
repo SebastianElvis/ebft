@@ -239,7 +239,13 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 		return false, false, err
 	}
 
-	log.Debugf("Accepted block %v", blockHash)
+	// get miner of the block
+	minerAddr, err := b.GetMiner(block)
+	if err != nil {
+		return false, false, err
+	}
+
+	log.Debugf("Accepted block %v mined by %v", blockHash, minerAddr)
 
 	// SyncORazor: set a timer 3\Delta on the block and start counting down
 	// If the block is certified within 3\Delta, the block will be finalised
@@ -250,30 +256,39 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 			// flag the block's timerFired to true
 			if blockNode := b.index.LookupNode(blockHash); blockNode != nil {
 				blockNode.timerFired = true
+				// block should be certified after 3\Delta
+				if !blockNode.status.KnownCertified() {
+					log.Errorf("extension SyncORazor: block %v has not been certified after 3 Delta, with votes %v", blockNode.hash, blockNode.certifyVotes)
+					return
+				}
 				// if no block at the same height
-				if b.bestChain.FindFork(blockNode) == nil {
+				commonAncestor := b.bestChain.FindFork(blockNode)
+
+				// there is a concurrent block
+				// if commonAncestor == nil || commonAncestor.hash == blockNode.hash || commonAncestor.hash == b.bestChain.genesis().hash {
+				if blockNode.workSum.Cmp(b.bestChain.Tip().workSum) <= 0 {
 					// finalise the block and its ancestors
 					curBlock := blockNode
 					for {
 						if !curBlock.status.KnownFinalized() {
-							curBlock.status = statusFinalized
-							curBlock = curBlock.parent
+							b.index.SetStatusFlags(blockNode, statusFinalized)
+							log.Infof("extension SyncORazor: block %v has been finalised", curBlock.hash)
+							if curBlock.parent == nil {
+								break
+							} else {
+								curBlock = curBlock.parent
+							}
 						} else {
+							log.Infof("extension SyncORazor: block %v and its ancestors have been finalised", blockNode.hash)
 							break
 						}
 					}
+				} else {
+					log.Infof("extension SyncORazor: block %v has a concurrent block (with common ancestor %v) and thus cannot be finalised", blockNode.hash, commonAncestor.hash)
 				}
 			}
 		}()
 	}
-
-	// Refresh committee
-	b.committeeAddrs, err = b.Committee(b.chainParams.CommitteeSize)
-	if err != nil {
-		log.Debugf("Refresh committee upon new block %v", blockHash)
-		return false, false, err
-	}
-	log.Debugf("Refresed committee: %v", b.committeeAddrs)
 
 	return isMainChain, false, nil
 }

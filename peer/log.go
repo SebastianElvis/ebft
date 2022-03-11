@@ -171,6 +171,9 @@ func messageSummary(msg wire.Message) string {
 	case *wire.MsgMemPool:
 		// No summary.
 
+	case *wire.MsgVote:
+		return fmt.Sprintf("%s block %v from %s", msg.Type.String(), msg.VotedBlockHash, msg.Address)
+
 	case *wire.MsgTx:
 		return fmt.Sprintf("hash %s, %d inputs, %d outputs, lock %s",
 			msg.TxHash(), len(msg.TxIn), len(msg.TxOut),

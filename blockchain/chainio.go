@@ -1405,3 +1405,24 @@ func (b *BlockChain) BlockByHash(hash *chainhash.Hash) (*btcutil.Block, error) {
 	})
 	return block, err
 }
+
+// BlockByHashNoMainChain is same as BlockByHash, except that the block
+// does not need to be in the main chain.
+// This function is safe for concurrent access.
+func (b *BlockChain) BlockByHashNoMainChain(hash *chainhash.Hash) (*btcutil.Block, error) {
+	// Lookup the block hash in block index and ensure it is in the best
+	// chain.
+	node := b.index.LookupNode(hash)
+	if node == nil {
+		return nil, fmt.Errorf("block %s does not exist", hash)
+	}
+
+	// Load the block from the database and return it.
+	var block *btcutil.Block
+	err := b.db.View(func(dbTx database.Tx) error {
+		var err error
+		block, err = dbFetchBlockByNode(dbTx, node)
+		return err
+	})
+	return block, err
+}
