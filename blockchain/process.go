@@ -279,7 +279,6 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 								curBlock = curBlock.parent
 							}
 						} else {
-							log.Infof("extension SyncORazor: block %v and its ancestors have been finalised", blockNode.hash)
 							break
 						}
 					}

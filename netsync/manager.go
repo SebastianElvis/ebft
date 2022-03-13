@@ -921,22 +921,19 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 // handleVoteMsg handles vote messages from all peers.
 func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	// process the vote
-	log.Debugf("in handleVoteMsg: start sm.chain.ProcessVote %v", msg.vote)
-	certified, duplicated, err := sm.chain.ProcessVote(msg.vote)
+	newlyCertified, duplicated, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {
 		log.Errorf("in handleVoteMsg: failed to process vote message %v: %v", msg.vote, err)
 		return
 	}
 
 	if duplicated {
-		log.Errorf("in handleVoteMsg: received duplicated %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
+		log.Debugf("in handleVoteMsg: received duplicated %s vote on block %v from peer %s", msg.vote.Type.String(), msg.vote.VotedBlockHash, msg.vote.Address)
 		return
 	}
 
-	log.Debugf("in handleVoteMsg: finished sm.chain.ProcessVote %v", msg.vote)
-
 	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
-	if certified &&
+	if newlyCertified &&
 		msg.vote.Type == wire.VTCertify &&
 		sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
 		for _, addr := range sm.miningAddrs {
