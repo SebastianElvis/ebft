@@ -605,9 +605,8 @@ func loadConfig() (*config, []string, error) {
 	// config for Crystal, SyncORazor and PSyncORazor
 	if cfg.CrystalSimNet {
 		numNets++
-		if cfg.CommitteeSize == 0 || cfg.Latency == 0 {
-			str := "%s: In Crystal, CommitteeSize and Latency" +
-				"cannot be zero"
+		if cfg.CommitteeSize == 0 {
+			str := "%s: In Crystal, CommitteeSize cannot be zero"
 			err := fmt.Errorf(str, funcName)
 			fmt.Fprintln(os.Stderr, err)
 			fmt.Fprintln(os.Stderr, usageMessage)
@@ -616,7 +615,7 @@ func loadConfig() (*config, []string, error) {
 		chainParams := chaincfg.CustomExtSimNetParams(
 			chaincfg.ExtCrystal,
 			cfg.CommitteeSize,
-			cfg.Latency,
+			0,
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
@@ -643,9 +642,8 @@ func loadConfig() (*config, []string, error) {
 	}
 	if cfg.PSyncORazorSimNet {
 		numNets++
-		if cfg.CommitteeSize == 0 || cfg.Latency == 0 {
-			str := "%s: In PSyncORazor, CommitteeSize and Latency" +
-				"cannot be zero"
+		if cfg.CommitteeSize == 0 {
+			str := "%s: In PSyncORazor, CommitteeSize cannot be zero"
 			err := fmt.Errorf(str, funcName)
 			fmt.Fprintln(os.Stderr, err)
 			fmt.Fprintln(os.Stderr, usageMessage)
@@ -654,7 +652,7 @@ func loadConfig() (*config, []string, error) {
 		chainParams := chaincfg.CustomExtSimNetParams(
 			chaincfg.ExtPSyncORazor,
 			cfg.CommitteeSize,
-			cfg.Latency,
+			0,
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
