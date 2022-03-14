@@ -22,8 +22,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union
 ################################################################
 # Parameters
 
-
-NUM_NODES = 4
 REFRESH_INTERVAL = 5.0
 REGIONS = {
     'us-east-1': 'N. Virginia',
@@ -42,17 +40,6 @@ REGIONS = {
     'eu-central-1': 'Frankfurt',
 }
 
-INSTANCE_COUNT_PER_REGION: Dict[str, int] = collections.defaultdict(int)
-_t_num_nodes = NUM_NODES
-while _t_num_nodes:
-    for r in REGIONS:
-        INSTANCE_COUNT_PER_REGION[r] += 1
-        _t_num_nodes -= 1
-        if _t_num_nodes == 0:
-            break
-
-AMI_IMAGE_ID_PER_REGION: Dict[str, str] = {}
-
 AWS_DIR = os.path.abspath(os.path.dirname(__file__))
 MINING_ADDRS_PATH = os.path.abspath(os.path.join(
     AWS_DIR, '..', '..', 'tools', 'address-list.txt'))
@@ -64,8 +51,26 @@ DATA_PATH = os.path.join(AWS_DIR, '..', 'data')
 LOG_PATH = os.path.join(AWS_DIR, '..', 'log')
 
 
+AMI_IMAGE_ID_PER_REGION: Dict[str, str] = {}
+
 ################################################################
 # utils
+
+
+def get_instance_count_per_region(committee_size, regions=REGIONS):
+    instance_count_per_region = dict()
+    _t_num_nodes = committee_size
+    while _t_num_nodes:
+        for r in REGIONS:
+            if r in instance_count_per_region:
+                instance_count_per_region[r] += 1
+            else:
+                instance_count_per_region[r] = 1
+            _t_num_nodes -= 1
+            if _t_num_nodes == 0:
+                break
+    return instance_count_per_region
+
 
 def get_mining_addrs(committee_size):
     addrs = list()
@@ -100,6 +105,45 @@ def load_ami_image_ids():
         image = sorted(images, key=lambda i: i.creation_date)[-1]
         AMI_IMAGE_ID_PER_REGION[region] = image.id
         print(f"done ({image.id})")
+
+
+####################################################################################
+# Security group, key pair and node list stuff
+
+def assign_security_group_to_all_instances(group_name):
+    # directly set at launch of instance for now
+    raise NotImplementedError
+
+
+def create_or_update_security_groups():
+    for region, region_name in REGIONS.items():
+        for g in ec2[region].security_groups.all():
+            if g.group_name == 'orazor':
+                print(f"{region_name}: deleting security group...",
+                      end='', flush=True)
+                g.delete()
+                print(" done")
+
+        print(f"{region_name}: creating new security group...",
+              end='', flush=True)
+        g = ec2[region].create_security_group(
+            GroupName='orazor', Description='ORazor security group (script generated)')
+        print(" done")
+
+        print(f"{region_name}: updating permissions...", end='', flush=True)
+        g.authorize_ingress(
+            FromPort=22,
+            ToPort=22,
+            IpProtocol='tcp',
+            CidrIp='0.0.0.0/0',
+        )
+        g.authorize_ingress(
+            FromPort=18555,
+            ToPort=18555,
+            IpProtocol='tcp',
+            CidrIp='0.0.0.0/0',
+        )
+        print(" done")
 
 
 class DryRunHandler:
@@ -324,24 +368,6 @@ class Instances:
         self.refresh_until(lambda: all(i.ssh_ok for i in what))
         print(" done")
 
-    def start(self, what=None, dryrun=False):
-        what = self.stopped if what is None else self.lookup(what)
-        if not all(i.state == InstanceState.STOPPED for i in what):
-            raise ValueError("instance(s) in invalid state")
-
-        print(
-            f"starting instance(s): {', '.join(what.ids)}...", end='', flush=True)
-        for region, self in what.by_region():
-            with DryRunHandler(dryrun):
-                ec2_clients[region].start_instances(
-                    InstanceIds=self.ids, DryRun=dryrun)
-            if not dryrun:
-                for i in self:
-                    i.state = InstanceState.PENDING
-        if not dryrun:
-            self.refresh_until(lambda: all(i.ssh_ok for i in what))
-        print(" done")
-
     def stop(self, what=None, dryrun=False):
         what = self.running if what is None else self.lookup(what)
         if not all(i.state == InstanceState.RUNNING for i in what):
@@ -380,32 +406,14 @@ class Instances:
                 i.state == InstanceState.TERMINATED for i in what))
         print(" done")
 
-    def create(self, instance_count_per_region=None, dryrun=False):
-        if instance_count_per_region is None:
-            instance_count_per_region = INSTANCE_COUNT_PER_REGION
+    def create(self, committee_size, dryrun=False):
+        instance_count_per_region = get_instance_count_per_region(
+            committee_size)
 
-        load_ami_image_ids()
-
-        instance_count_per_region = {
-            rid: ctr for rid, ctr in instance_count_per_region.items() if ctr > 0}
-        running_by_region = self.running.by_region(return_dict=True)
-
-        to_launch = 0
-        print()
         print("launch initiated, aiming to launch the following instances:")
-        for region in instance_count_per_region:
-            count = instance_count_per_region[region]
-            count = max(0, count - len(running_by_region.get(region, [])))
-            to_launch += count
-            instance_count_per_region[region] = count
-            print(f"    {REGIONS[region] + ':': <41} {count: >3}")
-
         print()
-        print(
-            f"number of currecly running instances:         {len(self.running): >3}")
-        print(f"total number of instance to launch:           {to_launch: >3}")
-        print(
-            f"total number of instance after launch:        {len(self.running) + to_launch: >3}")
+        for k in instance_count_per_region:
+            print("{:<20s}{:>10d}".format(k, instance_count_per_region[k]))
         print()
         try:
             r = input("type 'y' and press enter to continue: ")
@@ -419,25 +427,26 @@ class Instances:
         print()
         print("performing launch...")
         print()
-        for region, count in instance_count_per_region.items():
-            if count > 0:
-                Instances._create(region, count, dryrun=dryrun)
 
-        time.sleep(1)
-        self.refresh()
-
-    @classmethod
-    def _create(cls, region, num_instances=1, instance_type='t2.micro', dryrun=False):
-        assert instance_type in ['t2.nano',
-                                 't2.micro', 't2.small', 't2.medium']
-        # TODO (RH, non-urgent) assert num_instances <= 20,
-        #   "check instance limits (10 for t2.micro, 20 for t2.small/t2.medium"
+        # find image ids
+        load_ami_image_ids()
 
         # load instance script
         with open(SETUP_INSTANCE_SCRIPT_PATH, 'r') as f:
-            SETUP_INSTANCE_SCRIPT = f.read()
+            setup_instance_script = f.read()
 
-        load_ami_image_ids()
+        # launch instances region by region
+        for region, num_instances in instance_count_per_region.items():
+            if num_instances > 0:
+                Instances._create(region, num_instances,
+                                  setup_instance_script, dryrun=dryrun)
+
+        self.refresh()
+
+    @classmethod
+    def _create(cls, region, num_instances, setup_instance_script, instance_type='t2.micro', dryrun=False):
+        assert instance_type in ['t2.nano',
+                                 't2.micro', 't2.small', 't2.medium']
 
         print(
             f"    {REGIONS[region] + ':': <41} launching {num_instances: >3} instances... ", end="", flush=True)
@@ -449,7 +458,7 @@ class Instances:
                 KeyName='orazor',
                 MinCount=num_instances,
                 MaxCount=num_instances,
-                UserData=SETUP_INSTANCE_SCRIPT,
+                UserData=setup_instance_script,
                 SecurityGroups=['orazor'],
                 InstanceInitiatedShutdownBehavior='terminate',
                 IamInstanceProfile={
@@ -480,67 +489,6 @@ def test_ssh_connection(instances):
         finally:
             s.close()
     return True
-
-
-####################################################################################
-# Security group, key pair and node list stuff
-
-def assign_security_group_to_all_instances(group_name):
-    # directly set at launch of instance for now
-    raise NotImplementedError
-
-
-def create_or_update_security_groups():
-    for region, region_name in REGIONS.items():
-        for g in ec2[region].security_groups.all():
-            if g.group_name == 'orazor':
-                print(f"{region_name}: deleting security group...",
-                      end='', flush=True)
-                g.delete()
-                print(" done")
-
-        print(f"{region_name}: creating new security group...",
-              end='', flush=True)
-        g = ec2[region].create_security_group(
-            GroupName='orazor', Description='ORazor security group (script generated)')
-        print(" done")
-
-        print(f"{region_name}: updating permissions...", end='', flush=True)
-        g.authorize_ingress(
-            FromPort=22,
-            ToPort=22,
-            IpProtocol='tcp',
-            CidrIp='0.0.0.0/0',
-        )
-        g.authorize_ingress(
-            FromPort=18555,
-            ToPort=18555,
-            IpProtocol='tcp',
-            CidrIp='0.0.0.0/0',
-        )
-        print(" done")
-
-
-####################################################################################
-# SSH stuff
-
-@dataclasses.dataclass
-class SSHResult:
-    id: int
-    dnsname: str
-    exit_code: int
-    stdout: List[str]
-    stderr: List[str]
-    stdin: List[str]
-    error: Any
-
-    def __str__(self):
-        if self.exit_code == 0:
-            return self.stdout
-        return f"ERROR({self.exit_code}): {self.stderr}"
-
-    def __repr__(self):
-        return f"SSHResult({repr(self.id)}, {repr(str(self))})"
 
 
 class Operator:
@@ -617,13 +565,14 @@ class Operator:
         self.clean_logs()
         time.sleep(5)
 
-        mining_addrs = get_mining_addrs(NUM_NODES)
+        mining_addrs = get_mining_addrs(committee_size)
         peers_str = ' '.join(['--connect %s' %
                               x for x in self.instances.get_peers()])
         cmd_raw = f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {peers_str}'
         cmds = [cmd_raw + ' --mining-addr=%s' %
                 mining_addr for mining_addr in mining_addrs]
-        # TODO (RH): in the last cmd, further insert simulated_miner
+        # in the last cmd, further insert simulated_miner
+        cmds[-1] += f'& nohup /home/ec2-user/simulate-miner.sh 500 15 {committee_size} > /home/ec2-user/simulated-miner.log &'
         self._run_command(cmds)
 
         print("done")
@@ -644,7 +593,7 @@ class Operator:
 
     def collect_logs(self, extension, committee_size, latency, long=True):
         os.makedirs(LOG_PATH, exist_ok=True)
-        log_dir = f"{LOG_PATH}/{extension}_{NUM_NODES}_{committee_size}_{latency}"
+        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}"
         if long == True:
             log_dir += "_long"
         os.makedirs(log_dir, exist_ok=True)
@@ -688,8 +637,8 @@ class Operator:
 
 if __name__ == '__main__':
     if len(sys.argv) >= 2:
-        NUM_NODES = int(sys.argv[1])
-        print(f"setting NUM_NODES={NUM_NODES}")
+        committee_size = int(sys.argv[1])
+        print(f"setting committee_size={committee_size}")
 
     ec2 = {
         region: boto3.resource("ec2", region_name=region) for region in REGIONS
@@ -716,7 +665,6 @@ if __name__ == '__main__':
     op = Operator(instances, ssm_clients)
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hellofuckyou']}))
-    # op.ssh_connect(instances)
     # op.run_benchmark(instances)
     # op.collect_logs(instances)
 
