@@ -518,20 +518,7 @@ class Operator:
                 i += 1
         return command_ids
 
-    def _get_outputs(self, command_ids):
-        outputs = dict()
-        for region in REGIONS:
-            instanceIds = self.instances.by_region(
-                return_dict=True)[region].ids
-            for iid in instanceIds:
-                output = self.ssm_clients[region].get_command_invocation(
-                    CommandId=command_ids[iid],
-                    InstanceId=iid,
-                )
-                outputs[iid] = output
-        return outputs
-
-    def run_command_blocking(self, cmd):
+    def _run_command_blocking(self, cmd):
         cids = self._run_command(cmd)
         outputs = self._get_outputs(cids)
         while True:
@@ -546,13 +533,39 @@ class Operator:
                 outputs = self._get_outputs(cids)
         return outputs
 
+    def _get_outputs(self, command_ids):
+        outputs = dict()
+        for region in REGIONS:
+            instanceIds = self.instances.by_region(
+                return_dict=True)[region].ids
+            for iid in instanceIds:
+                output = self.ssm_clients[region].get_command_invocation(
+                    CommandId=command_ids[iid],
+                    InstanceId=iid,
+                )
+                outputs[iid] = output
+        return outputs
+
+    def _get_cmds(self, extension, committee_size, latency):
+        interval = latency * 4
+        mining_addrs = get_mining_addrs(committee_size)
+        peers_str = ' '.join(['--connect %s' %
+                              x for x in self.instances.get_peers()])
+
+        cmd_raw = f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {peers_str}'
+        cmds = [cmd_raw + ' --mining-addr=%s' %
+                mining_addr for mining_addr in mining_addrs]
+        # in the last cmd, further insert simulated_miner
+        cmds[-1] += f' & nohup /home/ec2-user/simulate-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        return cmds
+
     def refresh(self):
         self.instances.status()
         self.instances = self.instances.running
 
     def if_deployed(self):
         cmd = "ls /home/ec2-user/main.sh"
-        outputs = self.run_command_blocking(cmd)
+        outputs = self._run_command_blocking(cmd)
         for iid, out in outputs.items():
             if out['ResponseCode'] == 0:
                 print(f"{out['InstanceId']}: Deployed")
@@ -565,14 +578,7 @@ class Operator:
         self.clean_logs()
         time.sleep(5)
 
-        mining_addrs = get_mining_addrs(committee_size)
-        peers_str = ' '.join(['--connect %s' %
-                              x for x in self.instances.get_peers()])
-        cmd_raw = f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {peers_str}'
-        cmds = [cmd_raw + ' --mining-addr=%s' %
-                mining_addr for mining_addr in mining_addrs]
-        # in the last cmd, further insert simulated_miner
-        cmds[-1] += f'& nohup /home/ec2-user/simulate-miner.sh 500 15 {committee_size} > /home/ec2-user/simulated-miner.log &'
+        cmds = self._get_cmds(extension, committee_size, latency)
         self._run_command(cmds)
 
         print("done")
@@ -583,7 +589,7 @@ class Operator:
         if blocking == False:
             self._run_command(cmd)
         else:
-            outputs = self.run_command_blocking(cmd)
+            outputs = self._run_command_blocking(cmd)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -626,7 +632,7 @@ class Operator:
         if blocking == False:
             self._run_command(cmd)
         else:
-            outputs = self.run_command_blocking(cmd)
+            outputs = self._run_command_blocking(cmd)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
