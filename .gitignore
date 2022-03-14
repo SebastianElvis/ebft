@@ -44,3 +44,7 @@ btcctl
 addblock
 findcheckpoint
 gencerts
+
+# evaluation
+evaluation/data
+evaluation/log
