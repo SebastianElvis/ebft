@@ -41,7 +41,7 @@ const (
 	defaultLogLevel              = "info"
 	defaultLogDirname            = "logs"
 	defaultLogFilename           = "btcd.log"
-	defaultMaxPeers              = 128
+	defaultMaxPeers              = 1024
 	defaultBanDuration           = time.Hour * 24
 	defaultBanThreshold          = 100
 	defaultConnectTimeout        = time.Second * 30
