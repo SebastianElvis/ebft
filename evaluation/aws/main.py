@@ -506,10 +506,10 @@ class Operator:
         for region in REGIONS:
             instance_ids = instances_dict[region].ids
             for instance_id in instance_ids:
-                print("Starting ORazor on instance %s with command:\n %s" %
+                print("Executing the command below on instance %s:\n %s" %
                       (instance_id, cmds[i]))
                 response = self.ssm_clients[region].send_command(
-                    InstanceId=instance_id,
+                    InstanceIds=[instance_id],
                     DocumentName="AWS-RunShellScript",
                     Parameters={'commands': [cmds[i]]},
                 )
@@ -518,8 +518,8 @@ class Operator:
                 i += 1
         return command_ids
 
-    def _run_command_blocking(self, cmd):
-        cids = self._run_command(cmd)
+    def _run_command_blocking(self, cmds):
+        cids = self._run_command(cmds)
         outputs = self._get_outputs(cids)
         while True:
             finished = True
@@ -546,17 +546,15 @@ class Operator:
                 outputs[iid] = output
         return outputs
 
-    def _get_cmds(self, extension, committee_size, latency):
+    def _get_benchmark_cmds(self, extension, committee_size, latency):
         interval = latency * 4
         mining_addrs = get_mining_addrs(committee_size)
-        peers_str = ' '.join(['--connect %s' %
+        peers_str = ' '.join(['--connect=%s' %
                               x for x in self.instances.get_peers()])
-
-        cmd_raw = f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {peers_str}'
-        cmds = [cmd_raw + ' --mining-addr=%s' %
-                mining_addr for mining_addr in mining_addrs]
-        # in the last cmd, further insert simulated_miner
-        cmds[-1] += f' & nohup /home/ec2-user/simulate-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        cmds = [
+            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {peers_str}' for mining_addr in mining_addrs]
+        # in the last cmd, further insert simulated-miner
+        cmds[-1] += f' & sleep 5 & nohup /home/ec2-user/simulated-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
         return cmds
 
     def refresh(self):
@@ -565,7 +563,8 @@ class Operator:
 
     def if_deployed(self):
         cmd = "ls /home/ec2-user/main.sh"
-        outputs = self._run_command_blocking(cmd)
+        cmds = [cmd] * len(self.instances)
+        outputs = self._run_command_blocking(cmds)
         for iid, out in outputs.items():
             if out['ResponseCode'] == 0:
                 print(f"{out['InstanceId']}: Deployed")
@@ -578,18 +577,19 @@ class Operator:
         self.clean_logs()
         time.sleep(5)
 
-        cmds = self._get_cmds(extension, committee_size, latency)
+        cmds = self._get_benchmark_cmds(extension, committee_size, latency)
         self._run_command(cmds)
 
         print("done")
 
     def stop_benchmark(self, blocking=False):
         print("Killing ORazor processes")
-        cmd = "pkill -9 -f btcd & pkill -9 -f dstat"
+        cmd = "pkill -9 -f btcd & pkill -9 -f dstat & pkill -9 -f simulated-miner.sh"
+        cmds = [cmd] * len(self.instances)
         if blocking == False:
-            self._run_command(cmd)
+            self._run_command(cmds)
         else:
-            outputs = self._run_command_blocking(cmd)
+            outputs = self._run_command_blocking(cmds)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -614,7 +614,7 @@ class Operator:
                     f"Downloading {remote_path} from {i.dnsname+'...': <65} {idx + 1}/{len(self.instances.running)} ")
                 # Filename: dnsname_blocktime_numnodes_numminers_{stats.csv/main.log}
                 cmd = ' '.join([
-                    f'rsync -z -e "ssh -i ~/.ssh/orazor.pem -oStrictHostKeyChecking=accept-new"',
+                    f'rsync -z -e "ssh -i ~/.ssh/orazor -oStrictHostKeyChecking=accept-new"',
                     f'ec2-user@{i.dnsname}:{remote_path}',
                     f'"{file_fullpath}"',
                 ])
@@ -628,11 +628,12 @@ class Operator:
 
     def clean_logs(self, blocking=False):
         print("Removing logs")
-        cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/.local/share/btcd/"
+        cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/"
+        cmds = [cmd] * len(self.instances)
         if blocking == False:
-            self._run_command(cmd)
+            self._run_command(cmds)
         else:
-            outputs = self._run_command_blocking(cmd)
+            outputs = self._run_command_blocking(cmds)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -642,9 +643,12 @@ class Operator:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 2:
-        committee_size = int(sys.argv[1])
-        print(f"setting committee_size={committee_size}")
+    if len(sys.argv) >= 4:
+        extension = sys.argv[1]
+        committee_size = int(sys.argv[2])
+        latency = int(sys.argv[3])
+        print(
+            f"setting extension={extension}, committee_size={committee_size}, latency={latency}")
 
     ec2 = {
         region: boto3.resource("ec2", region_name=region) for region in REGIONS
@@ -660,7 +664,7 @@ if __name__ == '__main__':
     # create_or_update_security_groups()
 
     instances = Instances()
-    # instances.create()
+    # instances.create(committee_size)
 
     # instances.refresh()
     # instances.status()
@@ -669,10 +673,14 @@ if __name__ == '__main__':
     # Here you need to wait for some time (e.g., 1 min) until `setup-instance.sh` is executed on all instances
 
     op = Operator(instances, ssm_clients)
+    # op.if_deployed()
+
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
-    #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hellofuckyou']}))
-    # op.run_benchmark(instances)
-    # op.collect_logs(instances)
+    #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
+    # op.run_benchmark(extension, committee_size, latency)
+    # op.collect_logs(extension, committee_size, latency)
+    # op.stop_benchmark()
+    # op.clean_logs(blocking=True)
 
     # instances.stop()
     # instances.terminate()
