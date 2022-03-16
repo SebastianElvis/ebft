@@ -684,4 +684,8 @@ if __name__ == '__main__':
     # instances.stop()
     # instances.terminate()
 
-    # TODO (RH): different block size
+    # TODO (RH):
+    # - different block size
+    # - different block interval
+    # - different number of nodes in a single instance
+    # - committee size 256, network size 1024
