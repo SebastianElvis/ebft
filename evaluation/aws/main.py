@@ -554,7 +554,7 @@ class Operator:
         cmds = [
             f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {peers_str}' for mining_addr in mining_addrs]
         # in the last cmd, further insert simulated-miner
-        cmds[-1] += f' & sleep 5 & nohup /home/ec2-user/simulated-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
         return cmds
 
     def refresh(self):
@@ -666,7 +666,6 @@ if __name__ == '__main__':
     instances = Instances()
     # instances.create(committee_size)
 
-    # instances.refresh()
     # instances.status()
     # instances.running
 
@@ -684,3 +683,5 @@ if __name__ == '__main__':
 
     # instances.stop()
     # instances.terminate()
+
+    # TODO (RH): different block size
