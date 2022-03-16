@@ -3,6 +3,9 @@ num_blocks=$1
 interval=$2
 committee_size=$3
 
+# change the working directory
+cd "$(dirname "$0")"
+
 # read address list as $x
 mapfile -t x < address-list.txt
 
