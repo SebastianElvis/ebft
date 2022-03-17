@@ -57,6 +57,10 @@ type Config struct {
 	// generate block templates that the miner will attempt to solve.
 	BlockTemplateGenerator *mining.BlkTmplGenerator
 
+	// BlockSize specifies the expected size of the generated block
+	// Only used for ORazor experiments
+	BlockSize int
+
 	// MiningAddrs is a list of payment addresses to use for the generated
 	// blocks.  Each generated block will randomly choose one of them.
 	MiningAddrs []btcutil.Address
@@ -104,6 +108,10 @@ type CPUMiner struct {
 	updateHashes      chan uint64
 	speedMonitorQuit  chan struct{}
 	quit              chan struct{}
+}
+
+func (m *CPUMiner) MinerBlockSize() int {
+	return m.cfg.BlockSize
 }
 
 // speedMonitor handles tracking the number of hashes per second the mining
@@ -546,8 +554,12 @@ func (m *CPUMiner) NumWorkers() int32 {
 // detecting when it is performing stale work and reacting accordingly by
 // generating a new block template.  When a block is solved, it is submitted.
 // The function returns a list of the hashes of generated blocks.
-func (m *CPUMiner) GenerateNBlocksToAddressWithSize(n uint32, addr string, blockSize int) ([]*chainhash.Hash, error) {
-	log.Debugf("Generating %d blocks to address %v with size %d via GenerateNBlocksToAddressWithSize", n, addr, blockSize)
+func (m *CPUMiner) GenerateNBlocksToAddressWithSize(n uint32, addr string) ([]*chainhash.Hash, error) {
+	if m.cfg.BlockSize < 1 {
+		return nil, fmt.Errorf("m.cfg.BlockSize is too small: %d", m.cfg.BlockSize)
+	}
+
+	log.Debugf("Generating %d blocks to address %v with size %d via GenerateNBlocksToAddressWithSize", n, addr, m.cfg.BlockSize)
 
 	m.Lock()
 
@@ -604,16 +616,16 @@ func (m *CPUMiner) GenerateNBlocksToAddressWithSize(n uint32, addr string, block
 
 		// make template to blockSize by appending stuff to SignatureScript
 		currentBlockSize := template.Block.SerializeSize()
-		if currentBlockSize < blockSize {
-			nBytes := blockSize - currentBlockSize
+		if currentBlockSize < m.cfg.BlockSize {
+			nBytes := m.cfg.BlockSize - currentBlockSize
 			bytes, err := generateRandomBytes(nBytes)
 			if err != nil {
 				log.Errorf("Failed to pad block template %v: %v", template, err)
 				continue
 			}
-			template.Block.Transactions[0].TxIn[0].SignatureScript = bytes
+			template.Block.Transactions[0].TxIn[0].SignatureScript = append(template.Block.Transactions[0].TxIn[0].SignatureScript, bytes...)
 		}
-		log.Debugf("Block template %v has been padded to %d bytes", template, blockSize)
+		log.Debugf("Block template %v has been padded to %d bytes", template, template.Block.SerializeSize())
 
 		m.submitBlockLock.Unlock()
 		if err != nil {

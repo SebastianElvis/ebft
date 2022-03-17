@@ -130,56 +130,55 @@ type commandHandler func(*rpcServer, interface{}, <-chan struct{}) (interface{},
 // a dependency loop.
 var rpcHandlers map[string]commandHandler
 var rpcHandlersBeforeInit = map[string]commandHandler{
-	"addnode":                   handleAddNode,
-	"createrawtransaction":      handleCreateRawTransaction,
-	"debuglevel":                handleDebugLevel,
-	"decoderawtransaction":      handleDecodeRawTransaction,
-	"decodescript":              handleDecodeScript,
-	"estimatefee":               handleEstimateFee,
-	"generatetoaddress":         handleGenerateToAddress,
-	"generatetoaddresswithsize": handleGenerateToAddressWithSize,
-	"generate":                  handleGenerate,
-	"getaddednodeinfo":          handleGetAddedNodeInfo,
-	"getbestblock":              handleGetBestBlock,
-	"getbestblockhash":          handleGetBestBlockHash,
-	"getblock":                  handleGetBlock,
-	"getblockchaininfo":         handleGetBlockChainInfo,
-	"getblockcount":             handleGetBlockCount,
-	"getblockhash":              handleGetBlockHash,
-	"getblockheader":            handleGetBlockHeader,
-	"getblocktemplate":          handleGetBlockTemplate,
-	"getcfilter":                handleGetCFilter,
-	"getcfilterheader":          handleGetCFilterHeader,
-	"getconnectioncount":        handleGetConnectionCount,
-	"getcurrentnet":             handleGetCurrentNet,
-	"getdifficulty":             handleGetDifficulty,
-	"getgenerate":               handleGetGenerate,
-	"gethashespersec":           handleGetHashesPerSec,
-	"getheaders":                handleGetHeaders,
-	"getinfo":                   handleGetInfo,
-	"getmempoolinfo":            handleGetMempoolInfo,
-	"getmininginfo":             handleGetMiningInfo,
-	"getnettotals":              handleGetNetTotals,
-	"getnetworkhashps":          handleGetNetworkHashPS,
-	"getnodeaddresses":          handleGetNodeAddresses,
-	"getpeerinfo":               handleGetPeerInfo,
-	"getrawmempool":             handleGetRawMempool,
-	"getrawtransaction":         handleGetRawTransaction,
-	"gettxout":                  handleGetTxOut,
-	"help":                      handleHelp,
-	"node":                      handleNode,
-	"ping":                      handlePing,
-	"searchrawtransactions":     handleSearchRawTransactions,
-	"sendrawtransaction":        handleSendRawTransaction,
-	"setgenerate":               handleSetGenerate,
-	"signmessagewithprivkey":    handleSignMessageWithPrivKey,
-	"stop":                      handleStop,
-	"submitblock":               handleSubmitBlock,
-	"uptime":                    handleUptime,
-	"validateaddress":           handleValidateAddress,
-	"verifychain":               handleVerifyChain,
-	"verifymessage":             handleVerifyMessage,
-	"version":                   handleVersion,
+	"addnode":                handleAddNode,
+	"createrawtransaction":   handleCreateRawTransaction,
+	"debuglevel":             handleDebugLevel,
+	"decoderawtransaction":   handleDecodeRawTransaction,
+	"decodescript":           handleDecodeScript,
+	"estimatefee":            handleEstimateFee,
+	"generatetoaddress":      handleGenerateToAddress,
+	"generate":               handleGenerate,
+	"getaddednodeinfo":       handleGetAddedNodeInfo,
+	"getbestblock":           handleGetBestBlock,
+	"getbestblockhash":       handleGetBestBlockHash,
+	"getblock":               handleGetBlock,
+	"getblockchaininfo":      handleGetBlockChainInfo,
+	"getblockcount":          handleGetBlockCount,
+	"getblockhash":           handleGetBlockHash,
+	"getblockheader":         handleGetBlockHeader,
+	"getblocktemplate":       handleGetBlockTemplate,
+	"getcfilter":             handleGetCFilter,
+	"getcfilterheader":       handleGetCFilterHeader,
+	"getconnectioncount":     handleGetConnectionCount,
+	"getcurrentnet":          handleGetCurrentNet,
+	"getdifficulty":          handleGetDifficulty,
+	"getgenerate":            handleGetGenerate,
+	"gethashespersec":        handleGetHashesPerSec,
+	"getheaders":             handleGetHeaders,
+	"getinfo":                handleGetInfo,
+	"getmempoolinfo":         handleGetMempoolInfo,
+	"getmininginfo":          handleGetMiningInfo,
+	"getnettotals":           handleGetNetTotals,
+	"getnetworkhashps":       handleGetNetworkHashPS,
+	"getnodeaddresses":       handleGetNodeAddresses,
+	"getpeerinfo":            handleGetPeerInfo,
+	"getrawmempool":          handleGetRawMempool,
+	"getrawtransaction":      handleGetRawTransaction,
+	"gettxout":               handleGetTxOut,
+	"help":                   handleHelp,
+	"node":                   handleNode,
+	"ping":                   handlePing,
+	"searchrawtransactions":  handleSearchRawTransactions,
+	"sendrawtransaction":     handleSendRawTransaction,
+	"setgenerate":            handleSetGenerate,
+	"signmessagewithprivkey": handleSignMessageWithPrivKey,
+	"stop":                   handleStop,
+	"submitblock":            handleSubmitBlock,
+	"uptime":                 handleUptime,
+	"validateaddress":        handleValidateAddress,
+	"verifychain":            handleVerifyChain,
+	"verifymessage":          handleVerifyMessage,
+	"version":                handleVersion,
 }
 
 // list of commands that we recognize, but for which btcd has no support because
@@ -970,73 +969,23 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 		}
 	}
 
-	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
-	minrLog.Debugf("have generated %d blocks via generatetoaddress", c.NumBlocks)
+	var blockHashes []*chainhash.Hash
+	var err error
+	if s.cfg.CPUMiner.MinerBlockSize() < 1 {
+		blockHashes, err = s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
+	} else {
+		blockHashes, err = s.cfg.CPUMiner.GenerateNBlocksToAddressWithSize(uint32(c.NumBlocks), c.Address)
+	}
 	if err != nil {
 		return nil, &btcjson.RPCError{
 			Code:    btcjson.ErrRPCInternal.Code,
 			Message: err.Error(),
 		}
 	}
-
-	// Create a reply
-	reply := make([]string, c.NumBlocks)
-	// Mine the correct number of blocks, assigning the hex representation of the
-	// hash of each one to its place in the reply.
-	for i, hash := range blockHashes {
-		reply[i] = hash.String()
-	}
-
-	return reply, nil
-}
-
-// handleGenerate handles generatetoaddress commands.
-func handleGenerateToAddressWithSize(s *rpcServer, cmd interface{}, closeChan <-chan struct{}) (interface{}, error) {
-	// Respond with an error if there's virtually 0 chance of mining a block
-	// with the CPU.
-	if !s.cfg.ChainParams.GenerateSupported {
-		return nil, &btcjson.RPCError{
-			Code: btcjson.ErrRPCDifficulty,
-			Message: fmt.Sprintf("No support for `generatetoaddresswithsize` on "+
-				"the current network, %s, as it's unlikely to "+
-				"be possible to mine a block with the CPU.",
-				s.cfg.ChainParams.Net),
-		}
-	}
-
-	c := cmd.(*btcjson.GenerateToAddressWithSizeCmd)
-
-	// Respond with an error if the client is requesting 0 blocks to be generated.
-	if c.NumBlocks == 0 {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCInternal.Code,
-			Message: "Please request a nonzero number of blocks to generate.",
-		}
-	}
-
-	// Respond with an error if the client does not specify address
-	if c.Address == "" {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCInternal.Code,
-			Message: "Please specify the address for the generated blocks.",
-		}
-	}
-
-	// Respond with an error if the client is requesting 0 blocks to be generated.
-	if c.Size == 0 {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCInternal.Code,
-			Message: "Please request a nonzero number of blocksize.",
-		}
-	}
-
-	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddressWithSize(uint32(c.NumBlocks), c.Address, c.Size)
-	minrLog.Debugf("have generated %d blocks via generatetoaddresswithsize", c.NumBlocks)
-	if err != nil {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCInternal.Code,
-			Message: err.Error(),
-		}
+	if s.cfg.CPUMiner.MinerBlockSize() < 1 {
+		minrLog.Debugf("have generated %d blocks via generatetoaddress", c.NumBlocks)
+	} else {
+		minrLog.Debugf("have generated %d blocks with expected size %d via generatetoaddress", c.NumBlocks, s.cfg.CPUMiner.MinerBlockSize())
 	}
 
 	// Create a reply
