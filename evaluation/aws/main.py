@@ -546,13 +546,13 @@ class Operator:
                 outputs[iid] = output
         return outputs
 
-    def _get_benchmark_cmds(self, extension, committee_size, latency):
+    def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize):
         interval = latency * 4
         mining_addrs = get_mining_addrs(committee_size)
         peers_str = ' '.join(['--connect=%s' %
                               x for x in self.instances.get_peers()])
         cmds = [
-            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {peers_str}' for mining_addr in mining_addrs]
+            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {peers_str}' for mining_addr in mining_addrs]
         # in the last cmd, further insert simulated-miner
         cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
         return cmds
@@ -572,12 +572,12 @@ class Operator:
                 print(f"{out['InstanceId']}: Not deployed yet, please wait")
         print()
 
-    def run_benchmark(self, extension, committee_size, latency):
+    def run_benchmark(self, extension, committee_size, latency, minerblocksize):
         self.stop_benchmark()
         self.clean_logs()
         time.sleep(5)
 
-        cmds = self._get_benchmark_cmds(extension, committee_size, latency)
+        cmds = self._get_benchmark_cmds(extension, committee_size, latency, minerblocksize)
         self._run_command(cmds)
 
         print("done")
@@ -597,9 +597,9 @@ class Operator:
                     print("Error (or already done) at %s: %s" %
                           iid, out['StandardOutputContent'])
 
-    def collect_logs(self, extension, committee_size, latency, long=True):
+    def collect_logs(self, extension, committee_size, latency, minerblocksize, long=True):
         os.makedirs(LOG_PATH, exist_ok=True)
-        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}"
+        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}_{minerblocksize}"
         if long == True:
             log_dir += "_long"
         os.makedirs(log_dir, exist_ok=True)
@@ -643,12 +643,13 @@ class Operator:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 4:
+    if len(sys.argv) >= 5:
         extension = sys.argv[1]
         committee_size = int(sys.argv[2])
         latency = int(sys.argv[3])
+        minerblocksize = int(sys.argv[4])
         print(
-            f"setting extension={extension}, committee_size={committee_size}, latency={latency}")
+            f"setting extension={extension}, committee_size={committee_size}, latency={latency}, minerblocksize={minerblocksize}")
 
     ec2 = {
         region: boto3.resource("ec2", region_name=region) for region in REGIONS
@@ -676,8 +677,8 @@ if __name__ == '__main__':
 
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
-    # op.run_benchmark(extension, committee_size, latency)
-    # op.collect_logs(extension, committee_size, latency)
+    # op.run_benchmark(extension, committee_size, latency, minerblocksize)
+    # op.collect_logs(extension, committee_size, latency, minerblocksize)
     # op.stop_benchmark()
     # op.clean_logs(blocking=True)
 
@@ -685,7 +686,6 @@ if __name__ == '__main__':
     # instances.terminate()
 
     # TODO (RH):
-    # - different block size
     # - different block interval
     # - different number of nodes in a single instance
     # - committee size 256, network size 1024

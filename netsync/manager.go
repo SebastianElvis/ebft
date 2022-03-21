@@ -677,7 +677,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		return
 	}
 
-	log.Debugf("received block %v from peer %v", bmsg.block.Hash(), peer.Addr())
+	log.Infof("received block %v from peer %v", bmsg.block.Hash(), peer.Addr())
 
 	blockHash := bmsg.block.Hash()
 
