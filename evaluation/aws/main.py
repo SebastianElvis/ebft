@@ -577,7 +577,8 @@ class Operator:
         self.clean_logs()
         time.sleep(5)
 
-        cmds = self._get_benchmark_cmds(extension, committee_size, latency, minerblocksize)
+        cmds = self._get_benchmark_cmds(
+            extension, committee_size, latency, minerblocksize)
         self._run_command(cmds)
 
         print("done")
@@ -609,7 +610,8 @@ class Operator:
             for remote_path in ['/home/ec2-user/main.log', '/home/ec2-user/stats.csv']:
                 file_fullpath = f'{log_dir}/{i.dnsname}_{remote_path.split("/")[-1]}'
                 if os.path.exists(file_fullpath):
-                    continue
+                    # if exist, remove the file
+                    os.remove(file_fullpath)
                 print(
                     f"Downloading {remote_path} from {i.dnsname+'...': <65} {idx + 1}/{len(self.instances.running)} ")
                 # Filename: dnsname_blocktime_numnodes_numminers_{stats.csv/main.log}
