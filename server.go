@@ -1748,6 +1748,7 @@ func newServer(listenAddrs, agentBlacklist, agentWhitelist []string,
 	s.cpuMiner = cpuminer.New(&cpuminer.Config{
 		ChainParams:            chainParams,
 		BlockTemplateGenerator: blockTemplateGenerator,
+		BlockSize:              cfg.MinerBlockSize,
 		MiningAddrs:            cfg.miningAddrs,
 		ProcessBlock:           s.syncManager.ProcessBlock,
 		ConnectedCount:         s.ConnectedCount,

@@ -969,13 +969,26 @@ func handleGenerateToAddress(s *rpcServer, cmd interface{}, closeChan <-chan str
 		}
 	}
 
-	blockHashes, err := s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
-	minrLog.Debugf("have generated %d blocks via generatetoaddress", c.NumBlocks)
-	if err != nil {
-		return nil, &btcjson.RPCError{
-			Code:    btcjson.ErrRPCInternal.Code,
-			Message: err.Error(),
+	var blockHashes []*chainhash.Hash
+	var err error
+	if s.cfg.CPUMiner.MinerBlockSize() < 1 {
+		blockHashes, err = s.cfg.CPUMiner.GenerateNBlocksToAddress(uint32(c.NumBlocks), c.Address)
+		if err != nil {
+			return nil, &btcjson.RPCError{
+				Code:    btcjson.ErrRPCInternal.Code,
+				Message: err.Error(),
+			}
 		}
+		minrLog.Debugf("have generated %d blocks via generatetoaddress", c.NumBlocks)
+	} else {
+		blockHashes, err = s.cfg.CPUMiner.GenerateNBlocksToAddressWithSize(uint32(c.NumBlocks), c.Address)
+		if err != nil {
+			return nil, &btcjson.RPCError{
+				Code:    btcjson.ErrRPCInternal.Code,
+				Message: err.Error(),
+			}
+		}
+		minrLog.Debugf("have generated %d blocks with expected size %d via generatetoaddress", c.NumBlocks, s.cfg.CPUMiner.MinerBlockSize())
 	}
 
 	// Create a reply

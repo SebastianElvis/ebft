@@ -546,15 +546,14 @@ class Operator:
                 outputs[iid] = output
         return outputs
 
-    def _get_benchmark_cmds(self, extension, committee_size, latency):
-        interval = latency * 4
+    def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, certify_interval=1):
         mining_addrs = get_mining_addrs(committee_size)
         peers_str = ' '.join(['--connect=%s' %
                               x for x in self.instances.get_peers()])
         cmds = [
-            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {peers_str}' for mining_addr in mining_addrs]
+            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {peers_str}' for mining_addr in mining_addrs]
         # in the last cmd, further insert simulated-miner
-        cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {interval} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         return cmds
 
     def refresh(self):
@@ -572,12 +571,13 @@ class Operator:
                 print(f"{out['InstanceId']}: Not deployed yet, please wait")
         print()
 
-    def run_benchmark(self, extension, committee_size, latency):
+    def run_benchmark(self, extension, committee_size, latency, minerblocksize, block_interval, certify_interval):
         self.stop_benchmark()
         self.clean_logs()
         time.sleep(5)
 
-        cmds = self._get_benchmark_cmds(extension, committee_size, latency)
+        cmds = self._get_benchmark_cmds(
+            extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
         self._run_command(cmds)
 
         print("done")
@@ -597,11 +597,9 @@ class Operator:
                     print("Error (or already done) at %s: %s" %
                           iid, out['StandardOutputContent'])
 
-    def collect_logs(self, extension, committee_size, latency, long=True):
+    def collect_logs(self, extension, committee_size, latency, minerblocksize, block_interval=4, certify_interval=1):
         os.makedirs(LOG_PATH, exist_ok=True)
-        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}"
-        if long == True:
-            log_dir += "_long"
+        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}_{minerblocksize}_{block_interval}_{certify_interval}"
         os.makedirs(log_dir, exist_ok=True)
         print("Collecting logs")
         procs = []
@@ -609,7 +607,8 @@ class Operator:
             for remote_path in ['/home/ec2-user/main.log', '/home/ec2-user/stats.csv']:
                 file_fullpath = f'{log_dir}/{i.dnsname}_{remote_path.split("/")[-1]}'
                 if os.path.exists(file_fullpath):
-                    continue
+                    # if exist, remove the file
+                    os.remove(file_fullpath)
                 print(
                     f"Downloading {remote_path} from {i.dnsname+'...': <65} {idx + 1}/{len(self.instances.running)} ")
                 # Filename: dnsname_blocktime_numnodes_numminers_{stats.csv/main.log}
@@ -643,12 +642,19 @@ class Operator:
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 4:
-        extension = sys.argv[1]
-        committee_size = int(sys.argv[2])
-        latency = int(sys.argv[3])
+    if len(sys.argv) >= 7:
+        extension = sys.argv[1]  # (syncorazor, psyncorazor)
+        committee_size = int(sys.argv[2])  # size of the committee
+        latency = int(sys.argv[3])  # Delta in synchrony
+        minerblocksize = int(sys.argv[4])  # block size
+        # time interval between two blocks, divided by latency
+        block_interval = int(sys.argv[5])
+        certify_interval = int(sys.argv[6])
         print(
-            f"setting extension={extension}, committee_size={committee_size}, latency={latency}")
+            f"setting extension={extension}, committee_size={committee_size}, latency={latency}, minerblocksize={minerblocksize}, block_interval={block_interval}, certify_interval={certify_interval}")
+    else:
+        print('please specify arguments')
+        exit(0)
 
     ec2 = {
         region: boto3.resource("ec2", region_name=region) for region in REGIONS
@@ -676,8 +682,8 @@ if __name__ == '__main__':
 
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
-    # op.run_benchmark(extension, committee_size, latency)
-    # op.collect_logs(extension, committee_size, latency)
+    # op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
+    # op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
     # op.stop_benchmark()
     # op.clean_logs(blocking=True)
 
@@ -685,7 +691,6 @@ if __name__ == '__main__':
     # instances.terminate()
 
     # TODO (RH):
-    # - different block size
     # - different block interval
     # - different number of nodes in a single instance
     # - committee size 256, network size 1024

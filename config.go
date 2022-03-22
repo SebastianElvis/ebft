@@ -52,7 +52,7 @@ const (
 	defaultFreeTxRelayLimit      = 15.0
 	defaultTrickleInterval       = peer.DefaultTrickleInterval
 	defaultBlockMinSize          = 0
-	defaultBlockMaxSize          = 750000
+	defaultBlockMaxSize          = 100000000
 	defaultBlockMinWeight        = 0
 	defaultBlockMaxWeight        = 3000000
 	blockMaxSizeMin              = 1000
@@ -187,6 +187,7 @@ type config struct {
 	PSyncORazorSimNet bool   `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
 	CommitteeSize     uint32 `long:"committeesize" description:"Size of the committee"`
 	Latency           uint32 `long:"latency" description:"Latency of the synchronous period"`
+	MinerBlockSize    int    `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
 }
 
 // serviceOptions defines the configuration options for the daemon as a service on
