@@ -92,13 +92,11 @@ func (b *BlockChain) syncProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 	//   - refresh the committee
 	if totalCertifyVotes(blockNode, committee) == quorum {
 		// certify the block
-		b.index.SetStatusFlags(blockNode, statusCertified)
+		b.index.Certify(blockNode)
 		// change the bestchain
-		b.chainLock.Lock()
-		if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
+		if _, err := b.ConnectBestChain(blockNode, block, BFNone); err != nil {
 			return false, false, err
 		}
-		b.chainLock.Unlock()
 		log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
 		// refresh the committee
 		b.committeeAddrs, err = b.Committee()
@@ -157,13 +155,11 @@ func (b *BlockChain) psyncProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 		//   - refresh the committee
 		if totalCertifyVotes(blockNode, committee) == quorum {
 			// certify the block
-			b.index.SetStatusFlags(blockNode, statusCertified)
+			b.index.Certify(blockNode)
 			// change the bestchain
-			b.chainLock.Lock()
-			if _, err := b.connectBestChain(blockNode, block, BFNone); err != nil {
+			if _, err := b.ConnectBestChain(blockNode, block, BFNone); err != nil {
 				return false, false, err
 			}
-			b.chainLock.Unlock()
 			log.Infof("extension PSyncORazor: block %v has been certified", blockNode.hash)
 			return true, false, nil
 		} else {

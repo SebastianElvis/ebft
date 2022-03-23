@@ -190,6 +190,10 @@ type BlockChain struct {
 	miningAddrs []btcutil.Address
 }
 
+func (b *BlockChain) Index() *blockIndex {
+	return b.index
+}
+
 // HaveBlock returns whether or not the chain instance has the block represented
 // by the passed hash.  This includes checking the various places a block can
 // be like part of the main chain, on a side chain, or in the orphan pool.
@@ -1114,7 +1118,7 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 		if !fastAdd {
 			err := b.checkConnectBlock(node, block, view, &stxos)
 			if err == nil {
-				b.index.SetStatusFlags(node, statusCertified)
+				b.index.Certify(node)
 			} else if _, ok := err.(RuleError); ok {
 				b.index.SetStatusFlags(node, statusValidateFailed)
 			} else {
@@ -1164,7 +1168,7 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 		// valid, then we'll update its status and flush the state to
 		// disk again.
 		if fastAdd || !b.index.NodeStatus(node).KnownValid() {
-			b.index.SetStatusFlags(node, statusCertified)
+			b.index.Certify(node)
 			flushIndexState()
 		}
 
@@ -1215,6 +1219,13 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 	}
 
 	return err == nil, err
+}
+
+func (b *BlockChain) ConnectBestChain(node *blockNode, block *btcutil.Block, flags BehaviorFlags) (bool, error) {
+	b.chainLock.Lock()
+	res, err := b.connectBestChain(node, block, BFNone)
+	b.chainLock.Unlock()
+	return res, err
 }
 
 // isCurrent returns whether or not the chain believes it is current.  Several
