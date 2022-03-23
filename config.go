@@ -188,6 +188,7 @@ type config struct {
 	CommitteeSize     uint32 `long:"committeesize" description:"Size of the committee"`
 	Latency           uint32 `long:"latency" description:"Latency of the synchronous period"`
 	MinerBlockSize    int    `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
+	EpochSize         int    `long:"epochsize" description:"Number of blocks in an epoch (for experiments)"`
 }
 
 // serviceOptions defines the configuration options for the daemon as a service on
@@ -617,6 +618,7 @@ func loadConfig() (*config, []string, error) {
 			chaincfg.ExtCrystal,
 			cfg.CommitteeSize,
 			0,
+			0,
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
@@ -636,6 +638,7 @@ func loadConfig() (*config, []string, error) {
 			chaincfg.ExtSyncORazor,
 			cfg.CommitteeSize,
 			cfg.Latency,
+			0,
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
@@ -650,10 +653,14 @@ func loadConfig() (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return nil, nil, err
 		}
+		if cfg.EpochSize == 0 {
+			cfg.EpochSize = 1
+		}
 		chainParams := chaincfg.CustomExtSimNetParams(
 			chaincfg.ExtPSyncORazor,
 			cfg.CommitteeSize,
 			0,
+			uint32(cfg.EpochSize),
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"

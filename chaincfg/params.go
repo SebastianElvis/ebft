@@ -255,6 +255,7 @@ type Params struct {
 	Extension     ExtensionType
 	CommitteeSize uint32
 	Latency       uint32
+	EpochSize     uint32
 }
 
 // MainNetParams defines the network parameters for the main Bitcoin network.
