@@ -546,12 +546,12 @@ class Operator:
                 outputs[iid] = output
         return outputs
 
-    def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, certify_interval=1):
+    def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, epoch_size=1):
         mining_addrs = get_mining_addrs(committee_size)
         peers_str = ' '.join(['--connect=%s' %
                               x for x in self.instances.get_peers()])
         cmds = [
-            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {peers_str}' for mining_addr in mining_addrs]
+            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
         # in the last cmd, further insert simulated-miner
         cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         return cmds
@@ -571,13 +571,13 @@ class Operator:
                 print(f"{out['InstanceId']}: Not deployed yet, please wait")
         print()
 
-    def run_benchmark(self, extension, committee_size, latency, minerblocksize, block_interval, certify_interval):
+    def run_benchmark(self, extension, committee_size, latency, minerblocksize, block_interval, epoch_size):
         self.stop_benchmark()
         self.clean_logs()
         time.sleep(5)
 
         cmds = self._get_benchmark_cmds(
-            extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
+            extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
         self._run_command(cmds)
 
         print("done")
@@ -597,9 +597,9 @@ class Operator:
                     print("Error (or already done) at %s: %s" %
                           iid, out['StandardOutputContent'])
 
-    def collect_logs(self, extension, committee_size, latency, minerblocksize, block_interval=4, certify_interval=1):
+    def collect_logs(self, extension, committee_size, latency, minerblocksize, block_interval=4, epoch_size=1):
         os.makedirs(LOG_PATH, exist_ok=True)
-        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}_{minerblocksize}_{block_interval}_{certify_interval}"
+        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}_{minerblocksize}_{block_interval}_{epoch_size}"
         os.makedirs(log_dir, exist_ok=True)
         print("Collecting logs")
         procs = []
@@ -649,9 +649,9 @@ if __name__ == '__main__':
         minerblocksize = int(sys.argv[4])  # block size
         # time interval between two blocks, divided by latency
         block_interval = int(sys.argv[5])
-        certify_interval = int(sys.argv[6])
+        epoch_size = int(sys.argv[6])
         print(
-            f"setting extension={extension}, committee_size={committee_size}, latency={latency}, minerblocksize={minerblocksize}, block_interval={block_interval}, certify_interval={certify_interval}")
+            f"setting extension={extension}, committee_size={committee_size}, latency={latency}, minerblocksize={minerblocksize}, block_interval={block_interval}, epoch_size={epoch_size}")
     else:
         print('please specify arguments')
         exit(0)
@@ -682,8 +682,8 @@ if __name__ == '__main__':
 
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
-    # op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
-    # op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
+    # op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
+    # op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
     # op.stop_benchmark()
     # op.clean_logs(blocking=True)
 

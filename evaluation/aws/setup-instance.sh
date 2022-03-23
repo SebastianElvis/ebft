@@ -24,9 +24,9 @@ chown ec2-user /home/ec2-user/address-list.txt
 
 echo '#!/bin/bash' >> /home/ec2-user/main.sh
 echo 'dstat --integer --noupdate -T -n --tcp --cpu --mem --output /home/ec2-user/stats.csv 1 &> /dev/null &' >> /home/ec2-user/main.sh
-# $1 extension, $2 committee-size, $3 latency, $4 mining addr, $5 all IP addresses (--connect=ip1:port1 --connect=ip2:port2 ...)
+# $1 extension, $2 committee-size, $3 latency, $4 mining addr, $5 minerblocksize, $6 epochsize $7.. all IP addresses (--connect=ip1:port1 --connect=ip2:port2 ...)
 # --miningaddr is inserted in _run_command
-echo 'nohup btcd --$1 -d info --committeesize=$2 --latency=$3 --nostalldetect -u USER -P PASS  --listen=0.0.0.0:18555 --rpclisten=0.0.0.0:18556 --miningaddr=$4 --minerblocksize=$5 ${@:6} > /home/ec2-user/main.log 2>&1 &' >> /home/ec2-user/main.sh
+echo 'nohup btcd --$1 -d info --committeesize=$2 --latency=$3 --nostalldetect -u USER -P PASS  --listen=0.0.0.0:18555 --rpclisten=0.0.0.0:18556 --miningaddr=$4 --minerblocksize=$5 --epochsize=$6 ${@:7} > /home/ec2-user/main.log 2>&1 &' >> /home/ec2-user/main.sh
 chmod +x /home/ec2-user/main.sh
 chmod 777 /home/ec2-user/main.sh
 chown ec2-user /home/ec2-user/main.sh
