@@ -1,0 +1,3 @@
+,committee_size,extension,latency,mean_latency,minerblocksize,tps
+0,256.0,psyncorazor,5.0,1027.1408754038132,10.0,4096.0
+1,256.0,psyncorazor,5.0,,350.0,143360.0

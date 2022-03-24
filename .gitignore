@@ -45,6 +45,5 @@ addblock
 findcheckpoint
 gencerts
 
-# evaluation
-evaluation/data
+# log
 evaluation/log
