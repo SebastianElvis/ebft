@@ -1,3 +1,7 @@
-,committee_size,extension,latency,mean_latency,minerblocksize,tps
-0,256.0,psyncorazor,5.0,1027.1408754038132,10.0,4096.0
-1,256.0,psyncorazor,5.0,,350.0,143360.0
+,committee_size,epoch_size,extension,latency,mean_latency,minerblocksize,tps
+0,256.0,5.0,psyncorazor,2.0,5220.406401829094,10.0,10240.0
+1,256.0,5.0,psyncorazor,2.0,5605.48165214948,100.0,102400.0
+2,256.0,5.0,psyncorazor,2.0,5971.715311004785,200.0,204800.0
+3,256.0,5.0,psyncorazor,2.0,6232.753014682911,300.0,307200.0
+4,256.0,10.0,psyncorazor,2.0,10501.26699140401,10.0,10240.0
+5,256.0,10.0,psyncorazor,2.0,11392.91479001826,100.0,102400.0

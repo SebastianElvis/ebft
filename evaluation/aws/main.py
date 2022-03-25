@@ -573,7 +573,7 @@ class Operator:
 
     def run_benchmark(self, extension, committee_size, latency, minerblocksize, block_interval, epoch_size):
         self.stop_benchmark()
-        self.clean_logs()
+        self.clean()
         time.sleep(5)
 
         cmds = self._get_benchmark_cmds(
@@ -625,9 +625,9 @@ class Operator:
         outputs = [p.wait() for p in procs]
         print("Done")
 
-    def clean_logs(self, blocking=False):
-        print("Removing logs")
-        cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/"
+    def clean(self, blocking=False):
+        print("Removing everything...")
+        cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/ /root/.btcd/"
         cmds = [cmd] * len(self.instances)
         if blocking == False:
             self._run_command(cmds)
@@ -683,9 +683,9 @@ if __name__ == '__main__':
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
     # op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
-    # op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
+    # time.sleep(120); op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
     # op.stop_benchmark()
-    # op.clean_logs(blocking=True)
+    # op.clean(blocking=True)
 
     # instances.stop()
     # instances.terminate()
