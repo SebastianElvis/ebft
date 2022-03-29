@@ -535,7 +535,7 @@ class Operator:
         else:
             cmds = list()
             for mining_addr in mining_addrs:
-                random_peers = random.choices(peers, k=8)
+                random_peers = random.choices(peers, k=6)
                 peers_str = ' '.join(['--connect=%s' %
                                       x for x in random_peers])
                 cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}'
