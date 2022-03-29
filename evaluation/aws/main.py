@@ -53,13 +53,15 @@ LOG_PATH = os.path.join(AWS_DIR, '..', 'log')
 
 AMI_IMAGE_ID_PER_REGION: Dict[str, str] = {}
 
+NUM_NODES = 256
+
 ################################################################
 # utils
 
 
-def get_instance_count_per_region(committee_size, regions=REGIONS):
+def get_instance_count_per_region(regions=REGIONS):
     instance_count_per_region = dict()
-    _t_num_nodes = committee_size
+    _t_num_nodes = NUM_NODES
     while _t_num_nodes:
         for r in REGIONS:
             if r in instance_count_per_region:
@@ -72,10 +74,10 @@ def get_instance_count_per_region(committee_size, regions=REGIONS):
     return instance_count_per_region
 
 
-def get_mining_addrs(committee_size):
+def get_mining_addrs():
     addrs = list()
     with open(MINING_ADDRS_PATH, 'r') as f:
-        for i in range(committee_size):
+        for i in range(NUM_NODES):
             line = f.readline()
             addr = line.strip()
             addrs.append(addr)
@@ -144,23 +146,6 @@ def create_or_update_security_groups():
             CidrIp='0.0.0.0/0',
         )
         print(" done")
-
-
-class DryRunHandler:
-    def __init__(self, dryrun=False):
-        self.dryrun = dryrun
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        # returning False reraising any exception passed to this function
-        if exc_value is None:
-            assert not self.dryrun
-            return True
-        if self.dryrun:
-            return 'DryRunOperation' in str(exc_value)
-        return False
 
 ################################################################
 # definitions on instances
@@ -368,47 +353,41 @@ class Instances:
         self.refresh_until(lambda: all(i.ssh_ok for i in what))
         print(" done")
 
-    def stop(self, what=None, dryrun=False):
+    def stop(self, what=None):
         what = self.running if what is None else self.lookup(what)
         if not all(i.state == InstanceState.RUNNING for i in what):
             raise ValueError("instance(s) in invalid state")
         print(
             f"stopping instance(s): {', '.join(what.ids)}...", end='', flush=True)
         for region, self in what.by_region():
-            with DryRunHandler(dryrun):
-                ec2_clients[region].stop_instances(
-                    InstanceIds=self.ids, DryRun=dryrun)
-            if not dryrun:
-                for i in self:
-                    i.state = InstanceState.STOPPING
-        if not dryrun:
-            self.refresh_until(
-                lambda: all(
-                    i.state in [InstanceState.STOPPED, InstanceState.TERMINATED] for i in what)
-            )
+            ec2_clients[region].stop_instances(InstanceIds=self.ids)
+            for i in self:
+                i.state = InstanceState.STOPPING
+
+        self.refresh_until(
+            lambda: all(
+                i.state in [InstanceState.STOPPED, InstanceState.TERMINATED] for i in what)
+        )
         print(" done")
 
-    def terminate(self, what=None, dryrun=False):
+    def terminate(self, what=None):
         if what is None:
             what = [i for i in self if i.state != InstanceState.TERMINATED]
         what = self.lookup(what)
         print(
             f"terminating instance(s): {', '.join(what.ids)}...", end='', flush=True)
         for region, self in what.by_region():
-            with DryRunHandler(dryrun):
-                ec2_clients[region].terminate_instances(
-                    InstanceIds=self.ids, DryRun=dryrun)
-            if not dryrun:
-                for i in self:
-                    i.state = InstanceState.SHUTTING_DOWN
-        if not dryrun:
-            self.refresh_until(lambda: all(
-                i.state == InstanceState.TERMINATED for i in what))
+            ec2_clients[region].terminate_instances(
+                InstanceIds=self.ids)
+            for i in self:
+                i.state = InstanceState.SHUTTING_DOWN
+
+        self.refresh_until(lambda: all(
+            i.state == InstanceState.TERMINATED for i in what))
         print(" done")
 
-    def create(self, committee_size, dryrun=False):
-        instance_count_per_region = get_instance_count_per_region(
-            committee_size)
+    def create(self):
+        instance_count_per_region = get_instance_count_per_region()
 
         print("launch initiated, aiming to launch the following instances:")
         print()
@@ -439,34 +418,31 @@ class Instances:
         for region, num_instances in instance_count_per_region.items():
             if num_instances > 0:
                 Instances._create(region, num_instances,
-                                  setup_instance_script, dryrun=dryrun)
+                                  setup_instance_script)
 
         self.refresh()
 
     @classmethod
-    def _create(cls, region, num_instances, setup_instance_script, instance_type='t2.micro', dryrun=False):
+    def _create(cls, region, num_instances, setup_instance_script, instance_type='t2.micro'):
         assert instance_type in ['t2.nano',
                                  't2.micro', 't2.small', 't2.medium']
 
         print(
             f"    {REGIONS[region] + ':': <41} launching {num_instances: >3} instances... ", end="", flush=True)
-        result = None
-        with DryRunHandler(dryrun):
-            result = ec2[region].create_instances(
-                ImageId=AMI_IMAGE_ID_PER_REGION[region],
-                InstanceType='t2.micro',
-                KeyName='orazor',
-                MinCount=num_instances,
-                MaxCount=num_instances,
-                UserData=setup_instance_script,
-                SecurityGroups=['orazor'],
-                InstanceInitiatedShutdownBehavior='terminate',
-                IamInstanceProfile={
-                    'Arn': 'arn:aws:iam::350454502080:instance-profile/SystemManager',
-                    # 'Name': 'SystemManager',
-                },
-                DryRun=dryrun,
-            )
+        result = ec2[region].create_instances(
+            ImageId=AMI_IMAGE_ID_PER_REGION[region],
+            InstanceType='t2.micro',
+            KeyName='orazor',
+            MinCount=num_instances,
+            MaxCount=num_instances,
+            UserData=setup_instance_script,
+            SecurityGroups=['orazor'],
+            InstanceInitiatedShutdownBehavior='terminate',
+            IamInstanceProfile={
+                'Arn': 'arn:aws:iam::350454502080:instance-profile/SystemManager',
+                # 'Name': 'SystemManager',
+            },
+        )
         print("done")
         return result
 
@@ -547,13 +523,25 @@ class Operator:
         return outputs
 
     def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, epoch_size=1):
-        mining_addrs = get_mining_addrs(committee_size)
-        peers_str = ' '.join(['--connect=%s' %
-                              x for x in self.instances.get_peers()])
-        cmds = [
-            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
-        # in the last cmd, further insert simulated-miner
-        cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        mining_addrs = get_mining_addrs()
+        peers = self.instances.get_peers()
+        if extension == 'syncorazor' or extension == 'psyncorazor':
+            peers_str = ' '.join(['--connect=%s' %
+                                  x for x in peers])
+            cmds = [
+                f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
+            # in the last cmd, further insert simulated-miner
+            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        else:
+            cmds = list()
+            for mining_addr in mining_addrs:
+                random_peers = random.choices(peers, k=8)
+                peers_str = ' '.join(['--connect=%s' %
+                                      x for x in random_peers])
+                cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}'
+                cmds.append(cmd)
+            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+
         return cmds
 
     def refresh(self):
@@ -670,7 +658,7 @@ if __name__ == '__main__':
     # create_or_update_security_groups()
 
     instances = Instances()
-    # instances.create(committee_size)
+    # instances.create()
 
     # instances.status()
     # instances.running

@@ -832,12 +832,11 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		}
 	}
 
-	// broadcast the vote
+	// broadcast the block immediately
+	sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
+
 	// note that the block here is from the peer
 	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
-		// broadcast the block immediately
-		sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
-
 		// end of an epoch, vote and finalise
 		if bmsg.block.Height()%int32(sm.chainParams.EpochSize) == 0 {
 			committee, err := sm.chain.Committee()
@@ -1465,10 +1464,11 @@ out:
 
 				log.Debugf("in case processBlockMsg: block %v has passed sm.chain.ProcessBlock", msg.block.Hash())
 
+				// broadcast the block immediately
+				sm.peerNotifier.Broadcast(msg.block.MsgBlock())
+
 				// broadcast vote
 				if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
-					// broadcast the block immediately
-					sm.peerNotifier.Broadcast(msg.block.MsgBlock())
 
 					// end of an epoch, vote, certify and finalise
 					if msg.block.Height()%int32(sm.chainParams.EpochSize) == 0 {

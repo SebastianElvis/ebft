@@ -1087,8 +1087,10 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *btcutil.Block, fla
 	fastAdd := flags&BFFastAdd == BFFastAdd
 
 	// to be included in the best chain, the block has to be certified
-	if !node.status.KnownCertified() {
-		return false, fmt.Errorf("cannot connect a non-certified block %v to the best chain", node.hash)
+	if b.chainParams.Extension != chaincfg.ExtNone {
+		if !node.status.KnownCertified() {
+			return false, fmt.Errorf("cannot connect a non-certified block %v to the best chain", node.hash)
+		}
 	}
 
 	flushIndexState := func() {
