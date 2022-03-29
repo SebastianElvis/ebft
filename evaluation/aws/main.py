@@ -533,7 +533,6 @@ class Operator:
             # in the last cmd, further insert simulated-miner
             cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         else:
-            cmds = list()
             for mining_addr in mining_addrs:
                 random_peers = random.choices(peers, k=8)
                 peers_str = ' '.join(['--connect=%s' %

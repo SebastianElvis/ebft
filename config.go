@@ -634,11 +634,14 @@ func loadConfig() (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return nil, nil, err
 		}
+		if cfg.EpochSize == 0 {
+			cfg.EpochSize = 1
+		}
 		chainParams := chaincfg.CustomExtSimNetParams(
 			chaincfg.ExtSyncORazor,
 			cfg.CommitteeSize,
 			cfg.Latency,
-			0,
+			uint32(cfg.EpochSize),
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
