@@ -18,5 +18,6 @@ do
     btcctl --simnet --rpcuser=USER --rpcpass=PASS generatetoaddress 1 $addr
     echo "Generated block #$i to the $r-th address $addr"
     i=$((i+1))
-    sleep $interval
+    x=$(python -c "import random;print(random.uniform(0.0, $interval*2))")
+    sleep $x
 done

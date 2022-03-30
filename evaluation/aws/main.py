@@ -529,7 +529,7 @@ class Operator:
             peers_str = ' '.join(['--connect=%s' %
                                   x for x in peers])
             cmds = [
-                f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
+                f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
             # in the last cmd, further insert simulated-miner
             cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         else:
@@ -537,7 +537,7 @@ class Operator:
                 random_peers = random.choices(peers, k=8)
                 peers_str = ' '.join(['--connect=%s' %
                                       x for x in random_peers])
-                cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {epoch_size} {peers_str}'
+                cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}'
                 cmds.append(cmd)
             cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
 
@@ -666,6 +666,8 @@ if __name__ == '__main__':
 
     op = Operator(instances, ssm_clients)
     # op.if_deployed()
+
+    # cs=[(extension, committee_size, minerblocksize) for extension in extensions for committee_size in committee_sizes for minerblocksize in minerblocksizes]
 
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
