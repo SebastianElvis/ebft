@@ -533,6 +533,7 @@ class Operator:
             # in the last cmd, further insert simulated-miner
             cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         else:
+            cmds = list()
             for mining_addr in mining_addrs:
                 random_peers = random.choices(peers, k=8)
                 peers_str = ' '.join(['--connect=%s' %
@@ -667,12 +668,17 @@ if __name__ == '__main__':
     op = Operator(instances, ssm_clients)
     # op.if_deployed()
 
-    # cs=[(extension, committee_size, minerblocksize) for extension in extensions for committee_size in committee_sizes for minerblocksize in minerblocksizes]
+    extensions = ['syncorazor', 'psyncorazor']
+    committee_sizes = [64, 128, 256]
+    minerblocksizes = [20, 40, 80, 160]
+    cs = [(extension, committee_size, minerblocksize)
+          for extension in extensions for committee_size in committee_sizes for minerblocksize in minerblocksizes]
 
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
-    # op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
-    # time.sleep(120); op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
+
+    # for (extension, committee_size, minerblocksize) in cs:
+    #   op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, epoch_size); time.sleep(2*60); op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
     # op.stop_benchmark()
     # op.clean(blocking=True)
 
