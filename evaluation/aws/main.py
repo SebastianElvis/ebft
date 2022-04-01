@@ -509,6 +509,40 @@ class Operator:
                 outputs = self._get_outputs(cids)
         return outputs
 
+    def _run_same_command(self, cmd):
+        command_ids = dict()
+        instances_dict = self.instances.by_region(
+            return_dict=True)
+        # launch the command one by one
+        for region in REGIONS:
+            instance_ids = instances_dict[region].ids
+            print("Executing the command below on instance %s:\n %s" %
+                  (instance_ids, cmd))
+            response = self.ssm_clients[region].send_command(
+                InstanceIds=instance_ids,
+                DocumentName="AWS-RunShellScript",
+                Parameters={'commands': [cmd]},
+            )
+            command_id = response['Command']['CommandId']
+            command_ids[region] = command_id
+
+        return command_ids
+
+    def _run_same_command_blocking(self, cmd):
+        cids = self._run_same_command(cmd)
+        outputs = self._get_outputs(cids)
+        while True:
+            finished = True
+            for iid, out in outputs.items():
+                if out['ResponseCode'] == -1:
+                    finished = False
+            if finished == True:
+                break
+            else:
+                time.sleep(5)
+                outputs = self._get_outputs(cids)
+        return outputs
+
     def _get_outputs(self, command_ids):
         outputs = dict()
         for region in REGIONS:
@@ -531,7 +565,7 @@ class Operator:
             cmds = [
                 f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
             # in the last cmd, further insert simulated-miner
-            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+            # cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         else:
             cmds = list()
             for mining_addr in mining_addrs:
@@ -540,7 +574,7 @@ class Operator:
                                       x for x in random_peers])
                 cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}'
                 cmds.append(cmd)
-            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+            # cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
 
         return cmds
 
@@ -550,8 +584,7 @@ class Operator:
 
     def if_deployed(self):
         cmd = "ls /home/ec2-user/main.sh"
-        cmds = [cmd] * len(self.instances)
-        outputs = self._run_command_blocking(cmds)
+        outputs = self._run_same_command_blocking(cmd)
         for iid, out in outputs.items():
             if out['ResponseCode'] == 0:
                 print(f"{out['InstanceId']}: Deployed")
@@ -564,20 +597,24 @@ class Operator:
         self.clean()
         time.sleep(5)
 
+        print("starting nodes")
         cmds = self._get_benchmark_cmds(
             extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
         self._run_command(cmds)
+
+        print("starting miners")
+        mining_cmd = f'nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency*committee_size} {committee_size} > /home/ec2-user/simulated-miner.log'
+        self._run_same_command(mining_cmd)
 
         print("done")
 
     def stop_benchmark(self, blocking=False):
         print("Killing ORazor processes")
         cmd = "pkill -9 -f btcd & pkill -9 -f dstat & pkill -9 -f simulated-miner.sh"
-        cmds = [cmd] * len(self.instances)
         if blocking == False:
-            self._run_command(cmds)
+            self._run_same_command(cmd)
         else:
-            outputs = self._run_command_blocking(cmds)
+            outputs = self._run_same_command_blocking(cmd)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -616,11 +653,10 @@ class Operator:
     def clean(self, blocking=False):
         print("Removing everything...")
         cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/ /root/.btcd/"
-        cmds = [cmd] * len(self.instances)
         if blocking == False:
-            self._run_command(cmds)
+            self._run_same_command(cmd)
         else:
-            outputs = self._run_command_blocking(cmds)
+            outputs = self._run_same_command_blocking(cmd)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)

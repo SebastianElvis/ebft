@@ -935,7 +935,7 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	// process the vote
 	newlyCertified, duplicated, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {
-		log.Errorf("in handleVoteMsg: failed to process vote message %v: %v", msg.vote, err)
+		log.Debugf("in handleVoteMsg: failed to process vote message %v: %v", msg.vote, err)
 		return
 	}
 
