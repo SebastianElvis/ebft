@@ -5,6 +5,7 @@ yum -y install cmake gcc m4 gmp gmp-devel mpfr mpfr-devel libmpc libmpc-devel ds
 wget -O /bin/btcd https://orazor-dev.s3.us-east-1.amazonaws.com/btcd
 wget -O /bin/btcctl https://orazor-dev.s3.us-east-1.amazonaws.com/btcctl
 wget -O /home/ec2-user/simulated-miner.sh https://orazor-dev.s3.us-east-1.amazonaws.com/simulated-miner.sh
+wget -O /home/ec2-user/simulated-miner.sh https://orazor-dev.s3.us-east-1.amazonaws.com/simulated-random-miner.sh
 wget -O /home/ec2-user/address-list.txt https://orazor-dev.s3.us-east-1.amazonaws.com/address-list.txt
 
 chmod +x /bin/btcd
@@ -18,6 +19,9 @@ chown ec2-user /bin/btcctl
 chmod +x /home/ec2-user/simulated-miner.sh
 chmod 777 /home/ec2-user/simulated-miner.sh
 chown ec2-user /home/ec2-user/simulated-miner.sh
+chmod +x /home/ec2-user/simulated-random-miner.sh
+chmod 777 /home/ec2-user/simulated-random-miner.sh
+chown ec2-user /home/ec2-user/simulated-random-miner.sh
 
 chmod 777 /home/ec2-user/address-list.txt
 chown ec2-user /home/ec2-user/address-list.txt

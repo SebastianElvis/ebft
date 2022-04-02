@@ -565,7 +565,7 @@ class Operator:
             cmds = [
                 f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
             # in the last cmd, further insert simulated-miner
-            # cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
         else:
             cmds = list()
             for mining_addr in mining_addrs:
@@ -574,7 +574,7 @@ class Operator:
                                       x for x in random_peers])
                 cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}'
                 cmds.append(cmd)
-            # cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
 
         return cmds
 
@@ -584,7 +584,8 @@ class Operator:
 
     def if_deployed(self):
         cmd = "ls /home/ec2-user/main.sh"
-        outputs = self._run_same_command_blocking(cmd)
+        cmds = [cmd] * NUM_NODES
+        outputs = self._run_command_blocking(cmds)
         for iid, out in outputs.items():
             if out['ResponseCode'] == 0:
                 print(f"{out['InstanceId']}: Deployed")
@@ -602,9 +603,9 @@ class Operator:
             extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
         self._run_command(cmds)
 
-        print("starting miners")
-        mining_cmd = f'nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency*committee_size} {committee_size} > /home/ec2-user/simulated-miner.log'
-        self._run_same_command(mining_cmd)
+        # print("starting miners")
+        # mining_cmd = f'nohup /home/ec2-user/simulated-random-miner.sh 10000 {block_interval*latency*committee_size} {committee_size} > /home/ec2-user/simulated-miner.log'
+        # self._run_same_command(mining_cmd)
 
         print("done")
 
@@ -612,9 +613,9 @@ class Operator:
         print("Killing ORazor processes")
         cmd = "pkill -9 -f btcd & pkill -9 -f dstat & pkill -9 -f simulated-miner.sh"
         if blocking == False:
-            self._run_same_command(cmd)
+            self._run_command([cmd] * NUM_NODES)
         else:
-            outputs = self._run_same_command_blocking(cmd)
+            outputs = self._run_command_blocking([cmd] * NUM_NODES)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -654,9 +655,9 @@ class Operator:
         print("Removing everything...")
         cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/ /root/.btcd/"
         if blocking == False:
-            self._run_same_command(cmd)
+            self._run_command([cmd] * NUM_NODES)
         else:
-            outputs = self._run_same_command_blocking(cmd)
+            outputs = self._run_command_blocking([cmd] * NUM_NODES)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -669,7 +670,7 @@ if __name__ == '__main__':
     if len(sys.argv) >= 7:
         extension = sys.argv[1]  # (syncorazor, psyncorazor)
         committee_size = int(sys.argv[2])  # size of the committee
-        latency = int(sys.argv[3])  # Delta in synchrony
+        latency = float(sys.argv[3])  # Delta in synchrony
         minerblocksize = int(sys.argv[4])  # block size
         # time interval between two blocks, divided by latency
         block_interval = int(sys.argv[5])
