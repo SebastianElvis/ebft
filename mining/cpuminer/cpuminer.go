@@ -179,7 +179,6 @@ func (m *CPUMiner) submitBlock(block *btcutil.Block) bool {
 	// Process this block using the same rules as blocks coming from other
 	// nodes.  This will in turn relay it to the network like normal.
 	// instantiated by SyncManager.ProcessBlock()
-	// TODO (RH): stuck here!
 	isOrphan, err := m.cfg.ProcessBlock(block, blockchain.BFNone)
 	if err != nil {
 		// Anything other than a rule violation is an unexpected error,

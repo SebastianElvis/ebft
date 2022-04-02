@@ -2,7 +2,7 @@ version: '3'
 services:
   node1:
     image: orazor-dev/btcd
-    command: btcd --psyncorazor --committeesize=4 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=ShZCMVhQa1gdpY19pRM3JJXS6H8VWC22d3 -d info
+    command: btcd --psyncorazor --committeesize=4 --epochsize=5 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=ShZCMVhQa1gdpY19pRM3JJXS6H8VWC22d3 -d info
     cap_add:
       - ALL
     ports:
@@ -14,7 +14,7 @@ services:
         ipv4_address: 10.6.0.11
   node2:
     image: orazor-dev/btcd
-    command: btcd --psyncorazor --committeesize=4 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.11:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=SQqHYFTSPh8WAyJvzbAC8hoLbF12UVsE5s -d info
+    command: btcd --psyncorazor --committeesize=4 --epochsize=5 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.11:18555 --connect=10.6.0.13:18555 --connect=10.6.0.14:18555 --miningaddr=SQqHYFTSPh8WAyJvzbAC8hoLbF12UVsE5s -d info
     cap_add:
       - ALL
     networks:
@@ -22,7 +22,7 @@ services:
         ipv4_address: 10.6.0.12
   node3:
     image: orazor-dev/btcd
-    command: btcd --psyncorazor --committeesize=4 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.11:18555 --connect=10.6.0.14:18555 --miningaddr=SRp8kNwCgZqnhwq1cJc9uEJytN1EFqAcc2 -d info
+    command: btcd --psyncorazor --committeesize=4 --epochsize=5 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.11:18555 --connect=10.6.0.14:18555 --miningaddr=SRp8kNwCgZqnhwq1cJc9uEJytN1EFqAcc2 -d info
     cap_add:
       - ALL
     networks:
@@ -30,7 +30,7 @@ services:
         ipv4_address: 10.6.0.13
   node4:
     image: orazor-dev/btcd
-    command: btcd --psyncorazor --committeesize=4 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.11:18555 --miningaddr=SWXH87DkHKNBHyJySie9NVhDnAQfX7uu7v -d info
+    command: btcd --psyncorazor --committeesize=4 --epochsize=5 --minerblocksize=1048576 --nostalldetect -u USER -P PASS --rpclisten=0.0.0.0:18556 --listen=0.0.0.0:18555 --connect=10.6.0.12:18555 --connect=10.6.0.13:18555 --connect=10.6.0.11:18555 --miningaddr=SWXH87DkHKNBHyJySie9NVhDnAQfX7uu7v -d info
     cap_add:
       - ALL
     networks:

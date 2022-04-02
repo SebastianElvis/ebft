@@ -53,13 +53,15 @@ LOG_PATH = os.path.join(AWS_DIR, '..', 'log')
 
 AMI_IMAGE_ID_PER_REGION: Dict[str, str] = {}
 
+NUM_NODES = 256
+
 ################################################################
 # utils
 
 
-def get_instance_count_per_region(committee_size, regions=REGIONS):
+def get_instance_count_per_region(regions=REGIONS):
     instance_count_per_region = dict()
-    _t_num_nodes = committee_size
+    _t_num_nodes = NUM_NODES
     while _t_num_nodes:
         for r in REGIONS:
             if r in instance_count_per_region:
@@ -72,10 +74,10 @@ def get_instance_count_per_region(committee_size, regions=REGIONS):
     return instance_count_per_region
 
 
-def get_mining_addrs(committee_size):
+def get_mining_addrs():
     addrs = list()
     with open(MINING_ADDRS_PATH, 'r') as f:
-        for i in range(committee_size):
+        for i in range(NUM_NODES):
             line = f.readline()
             addr = line.strip()
             addrs.append(addr)
@@ -144,23 +146,6 @@ def create_or_update_security_groups():
             CidrIp='0.0.0.0/0',
         )
         print(" done")
-
-
-class DryRunHandler:
-    def __init__(self, dryrun=False):
-        self.dryrun = dryrun
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        # returning False reraising any exception passed to this function
-        if exc_value is None:
-            assert not self.dryrun
-            return True
-        if self.dryrun:
-            return 'DryRunOperation' in str(exc_value)
-        return False
 
 ################################################################
 # definitions on instances
@@ -368,47 +353,41 @@ class Instances:
         self.refresh_until(lambda: all(i.ssh_ok for i in what))
         print(" done")
 
-    def stop(self, what=None, dryrun=False):
+    def stop(self, what=None):
         what = self.running if what is None else self.lookup(what)
         if not all(i.state == InstanceState.RUNNING for i in what):
             raise ValueError("instance(s) in invalid state")
         print(
             f"stopping instance(s): {', '.join(what.ids)}...", end='', flush=True)
         for region, self in what.by_region():
-            with DryRunHandler(dryrun):
-                ec2_clients[region].stop_instances(
-                    InstanceIds=self.ids, DryRun=dryrun)
-            if not dryrun:
-                for i in self:
-                    i.state = InstanceState.STOPPING
-        if not dryrun:
-            self.refresh_until(
-                lambda: all(
-                    i.state in [InstanceState.STOPPED, InstanceState.TERMINATED] for i in what)
-            )
+            ec2_clients[region].stop_instances(InstanceIds=self.ids)
+            for i in self:
+                i.state = InstanceState.STOPPING
+
+        self.refresh_until(
+            lambda: all(
+                i.state in [InstanceState.STOPPED, InstanceState.TERMINATED] for i in what)
+        )
         print(" done")
 
-    def terminate(self, what=None, dryrun=False):
+    def terminate(self, what=None):
         if what is None:
             what = [i for i in self if i.state != InstanceState.TERMINATED]
         what = self.lookup(what)
         print(
             f"terminating instance(s): {', '.join(what.ids)}...", end='', flush=True)
         for region, self in what.by_region():
-            with DryRunHandler(dryrun):
-                ec2_clients[region].terminate_instances(
-                    InstanceIds=self.ids, DryRun=dryrun)
-            if not dryrun:
-                for i in self:
-                    i.state = InstanceState.SHUTTING_DOWN
-        if not dryrun:
-            self.refresh_until(lambda: all(
-                i.state == InstanceState.TERMINATED for i in what))
+            ec2_clients[region].terminate_instances(
+                InstanceIds=self.ids)
+            for i in self:
+                i.state = InstanceState.SHUTTING_DOWN
+
+        self.refresh_until(lambda: all(
+            i.state == InstanceState.TERMINATED for i in what))
         print(" done")
 
-    def create(self, committee_size, dryrun=False):
-        instance_count_per_region = get_instance_count_per_region(
-            committee_size)
+    def create(self):
+        instance_count_per_region = get_instance_count_per_region()
 
         print("launch initiated, aiming to launch the following instances:")
         print()
@@ -439,34 +418,31 @@ class Instances:
         for region, num_instances in instance_count_per_region.items():
             if num_instances > 0:
                 Instances._create(region, num_instances,
-                                  setup_instance_script, dryrun=dryrun)
+                                  setup_instance_script)
 
         self.refresh()
 
     @classmethod
-    def _create(cls, region, num_instances, setup_instance_script, instance_type='t2.micro', dryrun=False):
+    def _create(cls, region, num_instances, setup_instance_script, instance_type='t2.micro'):
         assert instance_type in ['t2.nano',
                                  't2.micro', 't2.small', 't2.medium']
 
         print(
             f"    {REGIONS[region] + ':': <41} launching {num_instances: >3} instances... ", end="", flush=True)
-        result = None
-        with DryRunHandler(dryrun):
-            result = ec2[region].create_instances(
-                ImageId=AMI_IMAGE_ID_PER_REGION[region],
-                InstanceType='t2.micro',
-                KeyName='orazor',
-                MinCount=num_instances,
-                MaxCount=num_instances,
-                UserData=setup_instance_script,
-                SecurityGroups=['orazor'],
-                InstanceInitiatedShutdownBehavior='terminate',
-                IamInstanceProfile={
-                    'Arn': 'arn:aws:iam::350454502080:instance-profile/SystemManager',
-                    # 'Name': 'SystemManager',
-                },
-                DryRun=dryrun,
-            )
+        result = ec2[region].create_instances(
+            ImageId=AMI_IMAGE_ID_PER_REGION[region],
+            InstanceType='t2.micro',
+            KeyName='orazor',
+            MinCount=num_instances,
+            MaxCount=num_instances,
+            UserData=setup_instance_script,
+            SecurityGroups=['orazor'],
+            InstanceInitiatedShutdownBehavior='terminate',
+            IamInstanceProfile={
+                'Arn': 'arn:aws:iam::350454502080:instance-profile/SystemManager',
+                # 'Name': 'SystemManager',
+            },
+        )
         print("done")
         return result
 
@@ -533,6 +509,40 @@ class Operator:
                 outputs = self._get_outputs(cids)
         return outputs
 
+    def _run_same_command(self, cmd):
+        command_ids = dict()
+        instances_dict = self.instances.by_region(
+            return_dict=True)
+        # launch the command one by one
+        for region in REGIONS:
+            instance_ids = instances_dict[region].ids
+            print("Executing the command below on instance %s:\n %s" %
+                  (instance_ids, cmd))
+            response = self.ssm_clients[region].send_command(
+                InstanceIds=instance_ids,
+                DocumentName="AWS-RunShellScript",
+                Parameters={'commands': [cmd]},
+            )
+            command_id = response['Command']['CommandId']
+            command_ids[region] = command_id
+
+        return command_ids
+
+    def _run_same_command_blocking(self, cmd):
+        cids = self._run_same_command(cmd)
+        outputs = self._get_outputs(cids)
+        while True:
+            finished = True
+            for iid, out in outputs.items():
+                if out['ResponseCode'] == -1:
+                    finished = False
+            if finished == True:
+                break
+            else:
+                time.sleep(5)
+                outputs = self._get_outputs(cids)
+        return outputs
+
     def _get_outputs(self, command_ids):
         outputs = dict()
         for region in REGIONS:
@@ -546,14 +556,26 @@ class Operator:
                 outputs[iid] = output
         return outputs
 
-    def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, certify_interval=1):
-        mining_addrs = get_mining_addrs(committee_size)
-        peers_str = ' '.join(['--connect=%s' %
-                              x for x in self.instances.get_peers()])
-        cmds = [
-            f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1048576} {peers_str}' for mining_addr in mining_addrs]
-        # in the last cmd, further insert simulated-miner
-        cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+    def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, epoch_size=1):
+        mining_addrs = get_mining_addrs()
+        peers = self.instances.get_peers()
+        if extension == 'syncorazor' or extension == 'psyncorazor':
+            peers_str = ' '.join(['--connect=%s' %
+                                  x for x in peers])
+            cmds = [
+                f'/home/ec2-user/main.sh {extension} {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}' for mining_addr in mining_addrs]
+            # in the last cmd, further insert simulated-miner
+            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+        else:
+            cmds = list()
+            for mining_addr in mining_addrs:
+                random_peers = random.choices(peers, k=8)
+                peers_str = ' '.join(['--connect=%s' %
+                                      x for x in random_peers])
+                cmd = f'/home/ec2-user/main.sh simnet {committee_size} {latency} {mining_addr} {minerblocksize*1024} {epoch_size} {peers_str}'
+                cmds.append(cmd)
+            cmds[-1] += f' & sleep 10 & nohup /home/ec2-user/simulated-miner.sh 10000 {block_interval*latency} {committee_size} > /home/ec2-user/simulated-miner.log &'
+
         return cmds
 
     def refresh(self):
@@ -562,7 +584,7 @@ class Operator:
 
     def if_deployed(self):
         cmd = "ls /home/ec2-user/main.sh"
-        cmds = [cmd] * len(self.instances)
+        cmds = [cmd] * NUM_NODES
         outputs = self._run_command_blocking(cmds)
         for iid, out in outputs.items():
             if out['ResponseCode'] == 0:
@@ -571,25 +593,29 @@ class Operator:
                 print(f"{out['InstanceId']}: Not deployed yet, please wait")
         print()
 
-    def run_benchmark(self, extension, committee_size, latency, minerblocksize, block_interval, certify_interval):
+    def run_benchmark(self, extension, committee_size, latency, minerblocksize, block_interval, epoch_size):
         self.stop_benchmark()
-        self.clean_logs()
+        self.clean()
         time.sleep(5)
 
+        print("starting nodes")
         cmds = self._get_benchmark_cmds(
-            extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
+            extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
         self._run_command(cmds)
+
+        # print("starting miners")
+        # mining_cmd = f'nohup /home/ec2-user/simulated-random-miner.sh 10000 {block_interval*latency*committee_size} {committee_size} > /home/ec2-user/simulated-miner.log'
+        # self._run_same_command(mining_cmd)
 
         print("done")
 
     def stop_benchmark(self, blocking=False):
         print("Killing ORazor processes")
         cmd = "pkill -9 -f btcd & pkill -9 -f dstat & pkill -9 -f simulated-miner.sh"
-        cmds = [cmd] * len(self.instances)
         if blocking == False:
-            self._run_command(cmds)
+            self._run_command([cmd] * NUM_NODES)
         else:
-            outputs = self._run_command_blocking(cmds)
+            outputs = self._run_command_blocking([cmd] * NUM_NODES)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -597,9 +623,9 @@ class Operator:
                     print("Error (or already done) at %s: %s" %
                           iid, out['StandardOutputContent'])
 
-    def collect_logs(self, extension, committee_size, latency, minerblocksize, block_interval=4, certify_interval=1):
+    def collect_logs(self, extension, committee_size, latency, minerblocksize, block_interval=4, epoch_size=1):
         os.makedirs(LOG_PATH, exist_ok=True)
-        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}_{minerblocksize}_{block_interval}_{certify_interval}"
+        log_dir = f"{LOG_PATH}/{extension}_{committee_size}_{latency}_{minerblocksize}_{block_interval}_{epoch_size}"
         os.makedirs(log_dir, exist_ok=True)
         print("Collecting logs")
         procs = []
@@ -625,14 +651,13 @@ class Operator:
         outputs = [p.wait() for p in procs]
         print("Done")
 
-    def clean_logs(self, blocking=False):
-        print("Removing logs")
-        cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/"
-        cmds = [cmd] * len(self.instances)
+    def clean(self, blocking=False):
+        print("Removing everything...")
+        cmd = "rm -rf /home/ec2-user/stats.csv /home/ec2-user/main.log /home/ec2-user/simulated-miner.log /home/ec2-user/.local/share/btcd/ /root/.btcd/"
         if blocking == False:
-            self._run_command(cmds)
+            self._run_command([cmd] * NUM_NODES)
         else:
-            outputs = self._run_command_blocking(cmds)
+            outputs = self._run_command_blocking([cmd] * NUM_NODES)
             for iid, out in outputs.items():
                 if out['ResponseCode'] == 0:
                     print("Done at %s" % iid)
@@ -645,13 +670,13 @@ if __name__ == '__main__':
     if len(sys.argv) >= 7:
         extension = sys.argv[1]  # (syncorazor, psyncorazor)
         committee_size = int(sys.argv[2])  # size of the committee
-        latency = int(sys.argv[3])  # Delta in synchrony
+        latency = float(sys.argv[3])  # Delta in synchrony
         minerblocksize = int(sys.argv[4])  # block size
         # time interval between two blocks, divided by latency
         block_interval = int(sys.argv[5])
-        certify_interval = int(sys.argv[6])
+        epoch_size = int(sys.argv[6])
         print(
-            f"setting extension={extension}, committee_size={committee_size}, latency={latency}, minerblocksize={minerblocksize}, block_interval={block_interval}, certify_interval={certify_interval}")
+            f"setting extension={extension}, committee_size={committee_size}, latency={latency}, minerblocksize={minerblocksize}, block_interval={block_interval}, epoch_size={epoch_size}")
     else:
         print('please specify arguments')
         exit(0)
@@ -670,7 +695,7 @@ if __name__ == '__main__':
     # create_or_update_security_groups()
 
     instances = Instances()
-    # instances.create(committee_size)
+    # instances.create()
 
     # instances.status()
     # instances.running
@@ -680,12 +705,19 @@ if __name__ == '__main__':
     op = Operator(instances, ssm_clients)
     # op.if_deployed()
 
+    extensions = ['syncorazor', 'psyncorazor']
+    committee_sizes = [64, 128, 256]
+    minerblocksizes = [20, 40, 80, 160]
+    cs = [(extension, committee_size, minerblocksize)
+          for extension in extensions for committee_size in committee_sizes for minerblocksize in minerblocksizes]
+
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
-    # op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
-    # op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, certify_interval)
+
+    # for (extension, committee_size, minerblocksize) in cs:
+    #   op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, epoch_size); time.sleep(2*60); op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
     # op.stop_benchmark()
-    # op.clean_logs(blocking=True)
+    # op.clean(blocking=True)
 
     # instances.stop()
     # instances.terminate()

@@ -182,12 +182,13 @@ type config struct {
 	whitelists           []*net.IPNet
 
 	// extensions
-	CrystalSimNet     bool   `long:"crystal" description:"Use the Crystal simulation test network"`
-	SyncORazorSimNet  bool   `long:"syncorazor" description:"Use the SyncORazor simulation test network"`
-	PSyncORazorSimNet bool   `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
-	CommitteeSize     uint32 `long:"committeesize" description:"Size of the committee"`
-	Latency           uint32 `long:"latency" description:"Latency of the synchronous period"`
-	MinerBlockSize    int    `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
+	CrystalSimNet     bool    `long:"crystal" description:"Use the Crystal simulation test network"`
+	SyncORazorSimNet  bool    `long:"syncorazor" description:"Use the SyncORazor simulation test network"`
+	PSyncORazorSimNet bool    `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
+	CommitteeSize     uint32  `long:"committeesize" description:"Size of the committee"`
+	Latency           float32 `long:"latency" description:"Latency of the synchronous period"`
+	MinerBlockSize    int     `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
+	EpochSize         int     `long:"epochsize" description:"Number of blocks in an epoch (for experiments)"`
 }
 
 // serviceOptions defines the configuration options for the daemon as a service on
@@ -617,6 +618,7 @@ func loadConfig() (*config, []string, error) {
 			chaincfg.ExtCrystal,
 			cfg.CommitteeSize,
 			0,
+			0,
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
@@ -632,10 +634,14 @@ func loadConfig() (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return nil, nil, err
 		}
+		if cfg.EpochSize == 0 {
+			cfg.EpochSize = 1
+		}
 		chainParams := chaincfg.CustomExtSimNetParams(
 			chaincfg.ExtSyncORazor,
 			cfg.CommitteeSize,
 			cfg.Latency,
+			uint32(cfg.EpochSize),
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"
@@ -650,10 +656,14 @@ func loadConfig() (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return nil, nil, err
 		}
+		if cfg.EpochSize == 0 {
+			cfg.EpochSize = 1
+		}
 		chainParams := chaincfg.CustomExtSimNetParams(
 			chaincfg.ExtPSyncORazor,
 			cfg.CommitteeSize,
 			0,
+			uint32(cfg.EpochSize),
 		)
 		activeNetParams.Params = &chainParams
 		activeNetParams.rpcPort = "18556"

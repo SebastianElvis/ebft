@@ -1,0 +1,7 @@
+,committee_size,epoch_size,extension,latency,minerblocksize,tps,type,value
+0,256.0,4.0,psyncorazor,0.5,160.0,640.0,bpd,1360.9687237866985
+1,256.0,4.0,psyncorazor,0.5,160.0,640.0,latency,2289.208938685053
+2,256.0,10.0,psyncorazor,0.2,160.0,1600.0,bpd,2192.37627889352
+3,256.0,10.0,psyncorazor,0.2,160.0,1600.0,latency,3448.723245109321
+4,256.0,20.0,psyncorazor,0.1,160.0,3200.0,bpd,2360.4221566121712
+5,256.0,20.0,psyncorazor,0.1,160.0,3200.0,latency,7726.744307217291

@@ -337,6 +337,10 @@ func (bi *blockIndex) SetStatusFlags(node *blockNode, flags blockStatus) {
 	bi.Unlock()
 }
 
+func (bi *blockIndex) Certify(node *blockNode) {
+	bi.SetStatusFlags(node, statusCertified)
+}
+
 // UnsetStatusFlags flips the provided status flags on the block node to off,
 // regardless of whether they were on or off previously.
 //

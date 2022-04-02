@@ -832,37 +832,49 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		}
 	}
 
-	// broadcast the vote
+	// broadcast the block immediately
+	sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
+
 	// note that the block here is from the peer
 	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
-		// broadcast the block immediately
-		sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
-
-		committee, err := sm.chain.Committee()
-		if err != nil {
-			log.Warnf("Failed to get committee: %v", err)
-		}
-		// if in committee, construct and broadcast a certify vote
-		numAddrInCommittee := 0
-		for _, addr := range sm.miningAddrs {
-			if _, ok := committee[addr.String()]; ok {
-				numAddrInCommittee += 1
-				vote := wire.MsgVote{
-					VotedBlockHash: *bmsg.block.Hash(),
-					Type:           wire.VTCertify,
-					Address:        wire.AddrToBytes(addr.String()),
-				}
-				log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), vote)
-				// process and broadcast vote
-				_, _, err := sm.chain.ProcessVote(&vote)
-				if err != nil {
-					log.Warnf("Failed to process vote: %v", vote)
-				}
-				sm.peerNotifier.Broadcast(&vote)
+		// end of an epoch, vote and finalise
+		if bmsg.block.Height()%int32(sm.chainParams.EpochSize) == 0 {
+			committee, err := sm.chain.Committee()
+			if err != nil {
+				log.Warnf("Failed to get committee: %v", err)
 			}
-		}
-		if numAddrInCommittee == 0 {
-			log.Debugf("no address is in the commoittee upon block %v", blockHash)
+			// if in committee, construct and broadcast a certify vote
+			numAddrInCommittee := 0
+			for _, addr := range sm.miningAddrs {
+				if _, ok := committee[addr.String()]; ok {
+					numAddrInCommittee += 1
+					vote := wire.MsgVote{
+						VotedBlockHash: *bmsg.block.Hash(),
+						Type:           wire.VTCertify,
+						Address:        wire.AddrToBytes(addr.String()),
+					}
+					log.Debugf("miner %v is in the committee, broadcast certify vote message %v", addr.String(), vote)
+					// process and broadcast vote
+					_, _, err := sm.chain.ProcessVote(&vote)
+					if err != nil {
+						log.Warnf("Failed to process vote: %v", vote)
+					}
+					sm.peerNotifier.Broadcast(&vote)
+				}
+			}
+			if numAddrInCommittee == 0 {
+				log.Debugf("no address is in the commoittee upon block %v", blockHash)
+			}
+		} else {
+			// certify the block locally directly
+			blockNode := sm.chain.Index().LookupNode(blockHash)
+			sm.chain.Index().Certify(blockNode)
+			// change the bestchain
+			if _, err := sm.chain.ConnectBestChain(blockNode, bmsg.block, blockchain.BFNone); err != nil {
+				log.Errorf("Failed to process block %v: %v", blockHash, err)
+				return
+			}
+			log.Infof("extension PSyncORazor with epoch size %d: block %v has been certified", sm.chainParams.EpochSize, blockHash)
 		}
 	}
 
@@ -923,7 +935,7 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 	// process the vote
 	newlyCertified, duplicated, err := sm.chain.ProcessVote(msg.vote)
 	if err != nil {
-		log.Errorf("in handleVoteMsg: failed to process vote message %v: %v", msg.vote, err)
+		log.Debugf("in handleVoteMsg: failed to process vote message %v: %v", msg.vote, err)
 		return
 	}
 
@@ -1419,7 +1431,6 @@ out:
 
 			case *voteMsg:
 				sm.handleVoteMsg(msg)
-				// TODO (RH): this is the issue!
 				// msg.reply <- struct{}{}
 
 			case *invMsg:
@@ -1453,40 +1464,52 @@ out:
 
 				log.Debugf("in case processBlockMsg: block %v has passed sm.chain.ProcessBlock", msg.block.Hash())
 
+				// broadcast the block immediately
+				sm.peerNotifier.Broadcast(msg.block.MsgBlock())
+
 				// broadcast vote
 				if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
-					// broadcast the block immediately
-					sm.peerNotifier.Broadcast(msg.block.MsgBlock())
 
-					committee, err := sm.chain.Committee()
-					if err != nil {
-						log.Warnf("Failed to get committee: %v", err)
-					}
-					// if in committee, construct and broadcast a certify vote
-					numAddrInCommittee := 0
-					for _, addr := range sm.miningAddrs {
-						if _, ok := committee[addr.String()]; ok {
-							numAddrInCommittee += 1
-							vote := wire.MsgVote{
-								VotedBlockHash: *msg.block.Hash(),
-								Type:           wire.VTCertify,
-								Address:        wire.AddrToBytes(addr.String()),
-							}
-							log.Debugf("in case processBlockMsg: miner %v is in the committee, process and broadcast certify vote message %v", addr.String(), vote)
-							// process and broadcast vote
-							_, _, err := sm.chain.ProcessVote(&vote)
-							if err != nil {
-								log.Warnf("Failed to process vote: %v", vote)
-							}
-							sm.peerNotifier.Broadcast(&vote)
+					// end of an epoch, vote, certify and finalise
+					if msg.block.Height()%int32(sm.chainParams.EpochSize) == 0 {
+						committee, err := sm.chain.Committee()
+						if err != nil {
+							log.Warnf("Failed to get committee: %v", err)
 						}
-					}
-					if numAddrInCommittee == 0 {
-						log.Debugf("no address is in the committee upon block %v", msg.block.Hash())
+						// if in committee, construct and broadcast a certify vote
+						numAddrInCommittee := 0
+						for _, addr := range sm.miningAddrs {
+							if _, ok := committee[addr.String()]; ok {
+								numAddrInCommittee += 1
+								vote := wire.MsgVote{
+									VotedBlockHash: *msg.block.Hash(),
+									Type:           wire.VTCertify,
+									Address:        wire.AddrToBytes(addr.String()),
+								}
+								log.Debugf("in case processBlockMsg: miner %v is in the committee, process and broadcast certify vote message %v", addr.String(), vote)
+								// process and broadcast vote
+								_, _, err := sm.chain.ProcessVote(&vote)
+								if err != nil {
+									log.Warnf("Failed to process vote: %v", vote)
+								}
+								sm.peerNotifier.Broadcast(&vote)
+							}
+						}
+						if numAddrInCommittee == 0 {
+							log.Debugf("no address is in the committee upon block %v", msg.block.Hash())
+						}
+					} else {
+						// certify the block locally directly
+						blockNode := sm.chain.Index().LookupNode(msg.block.Hash())
+						sm.chain.Index().Certify(blockNode)
+						// change the bestchain
+						if _, err := sm.chain.ConnectBestChain(blockNode, msg.block, blockchain.BFNone); err != nil {
+							log.Errorf("Failed to process block %v: %v", msg.block.Hash(), err)
+						}
+						log.Infof("extension PSyncORazor with epoch size %d: block %v has been certified", sm.chainParams.EpochSize, msg.block.Hash())
 					}
 				}
 
-				// TODO (RH): only the first block can go this far
 				// seems that after some broadcasts the p2p connections are completely broken
 				msg.reply <- processBlockResponse{
 					isOrphan: false,
@@ -1740,7 +1763,6 @@ func (sm *SyncManager) SyncPeerID() int32 {
 func (sm *SyncManager) ProcessBlock(block *btcutil.Block, flags blockchain.BehaviorFlags) (bool, error) {
 	reply := make(chan processBlockResponse, 1)
 	sm.msgChan <- processBlockMsg{block: block, flags: flags, reply: reply}
-	// TODO (RH): stuck here
 	response := <-reply
 	return response.isOrphan, response.err
 }

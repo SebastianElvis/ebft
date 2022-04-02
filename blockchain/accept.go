@@ -7,6 +7,7 @@ package blockchain
 import (
 	"fmt"
 
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcutil"
 )
@@ -76,17 +77,22 @@ func (b *BlockChain) maybeAcceptBlock(block *btcutil.Block, flags BehaviorFlags)
 	// Connect the passed block to the chain while respecting proper chain
 	// selection according to the chain with the most proof of work.  This
 	// also handles validation of the transaction scripts.
-	// isMainChain, err := b.connectBestChain(newNode, block, flags)
-	// if err != nil {
-	// 	return false, err
-	// }
-
-	// Notify the caller that the new block was accepted into the block
-	// chain.  The caller would typically want to react by relaying the
-	// inventory to other peers.
-	b.chainLock.Unlock()
-	b.sendNotification(NTBlockAccepted, block)
-	b.chainLock.Lock()
-
-	return false, nil
+	if b.chainParams.Extension == chaincfg.ExtNone {
+		isMainChain, err := b.connectBestChain(newNode, block, flags)
+		if err != nil {
+			return false, err
+		}
+		// Notify the caller that the new block was accepted into the block
+		// chain.  The caller would typically want to react by relaying the
+		// inventory to other peers.
+		b.chainLock.Unlock()
+		b.sendNotification(NTBlockAccepted, block)
+		b.chainLock.Lock()
+		return isMainChain, nil
+	} else {
+		b.chainLock.Unlock()
+		b.sendNotification(NTBlockAccepted, block)
+		b.chainLock.Lock()
+		return false, nil
+	}
 }
