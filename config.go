@@ -182,13 +182,13 @@ type config struct {
 	whitelists           []*net.IPNet
 
 	// extensions
-	CrystalSimNet     bool   `long:"crystal" description:"Use the Crystal simulation test network"`
-	SyncORazorSimNet  bool   `long:"syncorazor" description:"Use the SyncORazor simulation test network"`
-	PSyncORazorSimNet bool   `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
-	CommitteeSize     uint32 `long:"committeesize" description:"Size of the committee"`
-	Latency           uint32 `long:"latency" description:"Latency of the synchronous period"`
-	MinerBlockSize    int    `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
-	EpochSize         int    `long:"epochsize" description:"Number of blocks in an epoch (for experiments)"`
+	CrystalSimNet     bool    `long:"crystal" description:"Use the Crystal simulation test network"`
+	SyncORazorSimNet  bool    `long:"syncorazor" description:"Use the SyncORazor simulation test network"`
+	PSyncORazorSimNet bool    `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
+	CommitteeSize     uint32  `long:"committeesize" description:"Size of the committee"`
+	Latency           float32 `long:"latency" description:"Latency of the synchronous period"`
+	MinerBlockSize    int     `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
+	EpochSize         int     `long:"epochsize" description:"Number of blocks in an epoch (for experiments)"`
 }
 
 // serviceOptions defines the configuration options for the daemon as a service on

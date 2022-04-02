@@ -22,7 +22,7 @@ func (t ExtensionType) String() string {
 }
 
 // TODO: function NewParamsWithExtension
-func CustomExtSimNetParams(extension ExtensionType, committeeSize uint32, latency uint32, epochSize uint32) Params {
+func CustomExtSimNetParams(extension ExtensionType, committeeSize uint32, latency float32, epochSize uint32) Params {
 	return Params{
 		Name:        "simnet",
 		Net:         wire.SimNet,
