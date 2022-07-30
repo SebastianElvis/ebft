@@ -1,11 +1,11 @@
 ,committee_size,epoch_size,extension,latency,minerblocksize,tps,type,value
 
-,64.0,4.0,psyncorazor,0.025,40.0,800.0,latency,119.2089
-,64.0,4.0,psyncorazor,0.025,80.0,1600.0,latency,124.4489
-,64.0,4.0,psyncorazor,0.025,160.0,3200.0,latency,133.3312
-,64.0,4.0,psyncorazor,0.025,320.0,6400.0,latency,137.0112
-,64.0,4.0,psyncorazor,0.025,480.0,9600.0,latency,150.0332
-,64.0,4.0,psyncorazor,0.025,640.0,12800.0,latency,206.7862
+,64.0,4.0,psyncebft,0.025,40.0,800.0,latency,119.2089
+,64.0,4.0,psyncebft,0.025,80.0,1600.0,latency,124.4489
+,64.0,4.0,psyncebft,0.025,160.0,3200.0,latency,133.3312
+,64.0,4.0,psyncebft,0.025,320.0,6400.0,latency,137.0112
+,64.0,4.0,psyncebft,0.025,480.0,9600.0,latency,150.0332
+,64.0,4.0,psyncebft,0.025,640.0,12800.0,latency,206.7862
 
 ,64.0,4.0,hotstuff,0.025,40.0,800.0,latency,59.4423
 ,64.0,4.0,hotstuff,0.025,80.0,1600.0,latency,65.8679

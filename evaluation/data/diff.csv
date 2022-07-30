@@ -8,7 +8,7 @@ delete,add,name
 2,32,blockchain/chain.go
 0,21,blockchain/chainio.go
 0,82,blockchain/committee.go
-0,231,blockchain/orazor.go
+0,231,blockchain/ebft.go
 1,50,blockchain/process.go
 2,2,blockchain/weight.go
 0,266,btcec/vrf.go
@@ -45,8 +45,8 @@ delete,add,name
 0,10,tools/README.md
 0,6170,tools/address-list.json
 0,1028,tools/address-list.txt
-0,45,tools/docker-compose-psyncorazor-4nodes.yml
-0,45,tools/docker-compose-syncorazor-4nodes.yml
+0,45,tools/docker-compose-psyncebft-4nodes.yml
+0,45,tools/docker-compose-syncebft-4nodes.yml
 0,22,tools/simulated-miner.sh
 0,31,wire/common.go
 0,4,wire/message.go
