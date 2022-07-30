@@ -7,18 +7,18 @@ import (
 	"github.com/btcsuite/btcd/wire"
 )
 
-// Extension: Crystal, SyncORazor, PSyncORazor
+// Extension: Crystal, SyncEBFT, PSyncEBFT
 type ExtensionType uint8
 
 const (
 	ExtNone ExtensionType = iota
 	ExtCrystal
-	ExtSyncORazor
-	ExtPSyncORazor
+	ExtSyncEBFT
+	ExtPSyncEBFT
 )
 
 func (t ExtensionType) String() string {
-	return [...]string{"None", "Crystal", "SyncORazor", "PSyncORazor"}[t]
+	return [...]string{"None", "Crystal", "SyncEBFT", "PSyncEBFT"}[t]
 }
 
 // TODO: function NewParamsWithExtension

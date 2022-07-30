@@ -182,13 +182,13 @@ type config struct {
 	whitelists           []*net.IPNet
 
 	// extensions
-	CrystalSimNet     bool    `long:"crystal" description:"Use the Crystal simulation test network"`
-	SyncORazorSimNet  bool    `long:"syncorazor" description:"Use the SyncORazor simulation test network"`
-	PSyncORazorSimNet bool    `long:"psyncorazor" description:"Use the PSyncORazor simulation test network"`
-	CommitteeSize     uint32  `long:"committeesize" description:"Size of the committee"`
-	Latency           float32 `long:"latency" description:"Latency of the synchronous period"`
-	MinerBlockSize    int     `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
-	EpochSize         int     `long:"epochsize" description:"Number of blocks in an epoch (for experiments)"`
+	CrystalSimNet  bool    `long:"crystal" description:"Use the Crystal simulation test network"`
+	SyncSimNet     bool    `long:"syncebft" description:"Use the SyncEBFT simulation test network"`
+	PSyncSimNet    bool    `long:"psyncebft" description:"Use the PSyncEBFT simulation test network"`
+	CommitteeSize  uint32  `long:"committeesize" description:"Size of the committee"`
+	Latency        float32 `long:"latency" description:"Latency of the synchronous period"`
+	MinerBlockSize int     `long:"minerblocksize" description:"Expected size of the mined block (for experiments)"`
+	EpochSize      int     `long:"epochsize" description:"Number of blocks in an epoch (for experiments)"`
 }
 
 // serviceOptions defines the configuration options for the daemon as a service on
@@ -604,7 +604,7 @@ func loadConfig() (*config, []string, error) {
 		)
 		activeNetParams.Params = &chainParams
 	}
-	// config for Crystal, SyncORazor and PSyncORazor
+	// config for Crystal, SyncEBFT and PSyncEBFT
 	if cfg.CrystalSimNet {
 		numNets++
 		if cfg.CommitteeSize == 0 {
@@ -624,10 +624,10 @@ func loadConfig() (*config, []string, error) {
 		activeNetParams.rpcPort = "18556"
 		cfg.DisableDNSSeed = true
 	}
-	if cfg.SyncORazorSimNet {
+	if cfg.SyncSimNet {
 		numNets++
 		if cfg.CommitteeSize == 0 || cfg.Latency == 0 {
-			str := "%s: In SyncORazor, CommitteeSize and Latency" +
+			str := "%s: In SyncEBFT, CommitteeSize and Latency" +
 				"cannot be zero"
 			err := fmt.Errorf(str, funcName)
 			fmt.Fprintln(os.Stderr, err)
@@ -638,7 +638,7 @@ func loadConfig() (*config, []string, error) {
 			cfg.EpochSize = 1
 		}
 		chainParams := chaincfg.CustomExtSimNetParams(
-			chaincfg.ExtSyncORazor,
+			chaincfg.ExtSyncEBFT,
 			cfg.CommitteeSize,
 			cfg.Latency,
 			uint32(cfg.EpochSize),
@@ -647,10 +647,10 @@ func loadConfig() (*config, []string, error) {
 		activeNetParams.rpcPort = "18556"
 		cfg.DisableDNSSeed = true
 	}
-	if cfg.PSyncORazorSimNet {
+	if cfg.PSyncSimNet {
 		numNets++
 		if cfg.CommitteeSize == 0 {
-			str := "%s: In PSyncORazor, CommitteeSize cannot be zero"
+			str := "%s: In PSyncEBFT, CommitteeSize cannot be zero"
 			err := fmt.Errorf(str, funcName)
 			fmt.Fprintln(os.Stderr, err)
 			fmt.Fprintln(os.Stderr, usageMessage)
@@ -660,7 +660,7 @@ func loadConfig() (*config, []string, error) {
 			cfg.EpochSize = 1
 		}
 		chainParams := chaincfg.CustomExtSimNetParams(
-			chaincfg.ExtPSyncORazor,
+			chaincfg.ExtPSyncEBFT,
 			cfg.CommitteeSize,
 			0,
 			uint32(cfg.EpochSize),

@@ -34,12 +34,12 @@ func (b *BlockChain) ProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 		return false, false, fmt.Errorf("voter %v is not a part of the committee", addr)
 	}
 
-	if b.chainParams.Extension == chaincfg.ExtSyncORazor {
+	if b.chainParams.Extension == chaincfg.ExtSyncEBFT {
 		return b.syncProcessVote(vote)
-	} else if b.chainParams.Extension == chaincfg.ExtPSyncORazor {
+	} else if b.chainParams.Extension == chaincfg.ExtPSyncEBFT {
 		return b.psyncProcessVote(vote)
 	} else {
-		return false, false, fmt.Errorf("vote message cam only exist with extension ExtSyncORazor or ExtPSyncORazor")
+		return false, false, fmt.Errorf("vote message cam only exist with extension ExtSyncEBFT or ExtPSyncEBFT")
 	}
 }
 
@@ -50,9 +50,9 @@ func (b *BlockChain) syncProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 	voteType := vote.Type
 	addr := string(vote.Address[:])
 
-	// SyncORazor does not have UniqueAnnounce
+	// SyncEBFT does not have UniqueAnnounce
 	if voteType != wire.VTCertify {
-		return false, false, fmt.Errorf("wrong vote type in SyncORazor-simnet: %s", voteType.String())
+		return false, false, fmt.Errorf("wrong vote type in SyncEBFT-simnet: %s", voteType.String())
 	}
 
 	// quorum
@@ -97,7 +97,7 @@ func (b *BlockChain) syncProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 		if _, err := b.ConnectBestChain(blockNode, block, BFNone); err != nil {
 			return false, false, err
 		}
-		log.Infof("extension SyncORazor: block %v has been certified", blockNode.hash)
+		log.Infof("extension SyncEBFT: block %v has been certified", blockNode.hash)
 		// refresh the committee
 		b.committeeAddrs, err = b.Committee()
 		if err != nil {
@@ -160,7 +160,7 @@ func (b *BlockChain) psyncProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 			if _, err := b.ConnectBestChain(blockNode, block, BFNone); err != nil {
 				return false, false, err
 			}
-			log.Infof("extension PSyncORazor: block %v has been certified", blockNode.hash)
+			log.Infof("extension PSyncEBFT: block %v has been certified", blockNode.hash)
 			return true, false, nil
 		} else {
 			return false, false, nil
@@ -188,7 +188,7 @@ func (b *BlockChain) psyncProcessVote(vote *wire.MsgVote) (bool, bool, error) {
 			for {
 				if !curBlock.status.KnownFinalized() {
 					b.index.SetStatusFlags(blockNode, statusFinalized)
-					log.Infof("extension PSyncORazor: block %v has been finalised", curBlock.hash)
+					log.Infof("extension PSyncEBFT: block %v has been finalised", curBlock.hash)
 					if curBlock.parent == nil {
 						break
 					} else {

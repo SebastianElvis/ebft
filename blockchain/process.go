@@ -247,9 +247,9 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 
 	log.Debugf("Accepted block %v mined by %v", blockHash, minerAddr)
 
-	// SyncORazor: set a timer 3\Delta on the block and start counting down
+	// SyncEBFT: set a timer 3\Delta on the block and start counting down
 	// If the block is certified within 3\Delta, the block will be finalised
-	if b.chainParams.Extension == chaincfg.ExtSyncORazor {
+	if b.chainParams.Extension == chaincfg.ExtSyncEBFT {
 		go func() {
 			timer := time.NewTimer(time.Duration(3*b.chainParams.Latency) * time.Second)
 			<-timer.C
@@ -258,7 +258,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 				blockNode.timerFired = true
 				// block should be certified after 3\Delta
 				if !blockNode.status.KnownCertified() {
-					log.Errorf("extension SyncORazor: block %v has not been certified after 3 Delta, with votes %v", blockNode.hash, blockNode.certifyVotes)
+					log.Errorf("extension SyncEBFT: block %v has not been certified after 3 Delta, with votes %v", blockNode.hash, blockNode.certifyVotes)
 					return
 				}
 				// if no block at the same height
@@ -272,7 +272,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 					for {
 						if !curBlock.status.KnownFinalized() {
 							b.index.SetStatusFlags(blockNode, statusFinalized)
-							log.Infof("extension SyncORazor: block %v has been finalised", curBlock.hash)
+							log.Infof("extension SyncEBFT: block %v has been finalised", curBlock.hash)
 							if curBlock.parent == nil {
 								break
 							} else {
@@ -283,7 +283,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bo
 						}
 					}
 				} else {
-					log.Infof("extension SyncORazor: block %v has a concurrent block (with common ancestor %v) and thus cannot be finalised", blockNode.hash, commonAncestor.hash)
+					log.Infof("extension SyncEBFT: block %v has a concurrent block (with common ancestor %v) and thus cannot be finalised", blockNode.hash, commonAncestor.hash)
 				}
 			}
 		}()

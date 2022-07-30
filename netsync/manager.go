@@ -687,7 +687,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 	//   the peer or ignore the block when we're in regression test
 	//   mode in this case so the chain code is actually fed the
 	//   duplicate blocks.
-	// Crystal and ORazor requires broadcasting blocks actively
+	// Crystal and EBFT requires broadcasting blocks actively
 	if _, exists = state.requestedBlocks[*blockHash]; !exists {
 		if sm.chainParams.Net != wire.TestNet && sm.chainParams.Net != wire.SimNet {
 			log.Warnf("Got unrequested block %v from %s -- "+
@@ -836,7 +836,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 	sm.peerNotifier.Broadcast(bmsg.block.MsgBlock())
 
 	// note that the block here is from the peer
-	if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+	if sm.chainParams.Extension == chaincfg.ExtSyncEBFT || sm.chainParams.Extension == chaincfg.ExtPSyncEBFT {
 		// end of an epoch, vote and finalise
 		if bmsg.block.Height()%int32(sm.chainParams.EpochSize) == 0 {
 			committee, err := sm.chain.Committee()
@@ -874,7 +874,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 				log.Errorf("Failed to process block %v: %v", blockHash, err)
 				return
 			}
-			log.Infof("extension PSyncORazor with epoch size %d: block %v has been certified", sm.chainParams.EpochSize, blockHash)
+			log.Infof("extension PSyncEBFT with epoch size %d: block %v has been certified", sm.chainParams.EpochSize, blockHash)
 		}
 	}
 
@@ -944,10 +944,10 @@ func (sm *SyncManager) handleVoteMsg(msg *voteMsg) {
 		return
 	}
 
-	// in PSyncORazor, if the vote makes the block certified, broadcast a UniqueAnnounce vote
+	// in PSyncEBFT, if the vote makes the block certified, broadcast a UniqueAnnounce vote
 	if newlyCertified &&
 		msg.vote.Type == wire.VTCertify &&
-		sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+		sm.chainParams.Extension == chaincfg.ExtPSyncEBFT {
 		for _, addr := range sm.miningAddrs {
 			uniqueAnnounceVote := wire.MsgVote{
 				VotedBlockHash: msg.vote.VotedBlockHash,
@@ -1468,7 +1468,7 @@ out:
 				sm.peerNotifier.Broadcast(msg.block.MsgBlock())
 
 				// broadcast vote
-				if sm.chainParams.Extension == chaincfg.ExtSyncORazor || sm.chainParams.Extension == chaincfg.ExtPSyncORazor {
+				if sm.chainParams.Extension == chaincfg.ExtSyncEBFT || sm.chainParams.Extension == chaincfg.ExtPSyncEBFT {
 
 					// end of an epoch, vote, certify and finalise
 					if msg.block.Height()%int32(sm.chainParams.EpochSize) == 0 {
@@ -1506,7 +1506,7 @@ out:
 						if _, err := sm.chain.ConnectBestChain(blockNode, msg.block, blockchain.BFNone); err != nil {
 							log.Errorf("Failed to process block %v: %v", msg.block.Hash(), err)
 						}
-						log.Infof("extension PSyncORazor with epoch size %d: block %v has been certified", sm.chainParams.EpochSize, msg.block.Hash())
+						log.Infof("extension PSyncEBFT with epoch size %d: block %v has been certified", sm.chainParams.EpochSize, msg.block.Hash())
 					}
 				}
 

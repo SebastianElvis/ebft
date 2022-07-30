@@ -576,7 +576,7 @@ class Operator:
     def _get_benchmark_cmds(self, extension, committee_size, latency, minerblocksize, block_interval=4, epoch_size=1):
         mining_addrs = get_mining_addrs()
         peers = self.instances.get_peers()
-        if extension == 'syncorazor' or extension == 'psyncorazor':
+        if extension == 'syncebft' or extension == 'psyncebft':
             peers_str = ' '.join(['--connect=%s' %
                                   x for x in peers])
             cmds = [
@@ -627,7 +627,7 @@ class Operator:
         print("done")
 
     def stop_benchmark(self, blocking=False):
-        print("Killing ORazor processes")
+        print("Killing processes")
         cmd = "pkill -9 -f btcd & pkill -9 -f dstat & pkill -9 -f simulated-miner.sh"
         if blocking == False:
             self._run_command([cmd] * NUM_NODES)
@@ -685,7 +685,7 @@ class Operator:
 
 if __name__ == '__main__':
     if len(sys.argv) >= 7:
-        extension = sys.argv[1]  # (syncorazor, psyncorazor)
+        extension = sys.argv[1]  # (syncebft, psyncebft)
         committee_size = int(sys.argv[2])  # size of the committee
         latency = float(sys.argv[3])  # Delta in synchrony
         minerblocksize = int(sys.argv[4])  # block size
@@ -722,7 +722,7 @@ if __name__ == '__main__':
     op = Operator(instances, ssm_clients)
     # op.if_deployed()
 
-    extensions = ['syncorazor', 'psyncorazor']
+    extensions = ['syncebft', 'psyncebft']
     committee_sizes = [64, 128, 256]
     minerblocksizes = [20, 40, 80, 160]
     cs = [(extension, committee_size, minerblocksize)

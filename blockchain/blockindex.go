@@ -124,7 +124,7 @@ type blockNode struct {
 	certifyVotes        map[string]*wire.MsgVote
 	uniqueAnnounceVotes map[string]*wire.MsgVote
 
-	// timerFired represents whether the timer in SyncORazor has fired
+	// timerFired represents whether the timer in SyncEBFT has fired
 	timerFired bool
 }
 

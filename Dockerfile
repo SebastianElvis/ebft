@@ -1,6 +1,6 @@
 FROM alpine
 
-LABEL maintainer="orazor-dev"
+LABEL maintainer="ebft-dev"
 ENV GOPATH=/go
 ENV PATH=$GOPATH/bin/:$PATH
 ADD . /app

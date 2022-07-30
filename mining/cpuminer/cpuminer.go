@@ -58,7 +58,7 @@ type Config struct {
 	BlockTemplateGenerator *mining.BlkTmplGenerator
 
 	// BlockSize specifies the expected size of the generated block
-	// Only used for ORazor experiments
+	// Only used for EBFT experiments
 	BlockSize int
 
 	// MiningAddrs is a list of payment addresses to use for the generated
