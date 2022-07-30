@@ -34,3 +34,7 @@ echo 'nohup btcd --$1 -d info --committeesize=$2 --latency=$3 --nostalldetect -u
 chmod +x /home/ec2-user/main.sh
 chmod 777 /home/ec2-user/main.sh
 chown ec2-user /home/ec2-user/main.sh
+
+mkdir /home/ec2-user/bamboo
+chmod 777 /home/ec2-user/bamboo
+chown ec2-user /home/ec2-user/bamboo

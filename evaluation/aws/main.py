@@ -145,6 +145,18 @@ def create_or_update_security_groups():
             IpProtocol='tcp',
             CidrIp='0.0.0.0/0',
         )
+        g.authorize_ingress(
+            FromPort=3735,
+            ToPort=3735,
+            IpProtocol='tcp',
+            CidrIp='0.0.0.0/0',
+        )
+        g.authorize_ingress(
+            FromPort=8070,
+            ToPort=8070,
+            IpProtocol='tcp',
+            CidrIp='0.0.0.0/0',
+        )
         print(" done")
 
 ################################################################
@@ -346,6 +358,11 @@ class Instances:
 
     def get_peers(self):
         return [f"{i.public_ip}:18555" for i in self.running]
+
+    def save_peers(self):
+        with open('/Users/rhan0013/Projects/External/bamboo/evaluation/public_ips.txt', 'w') as f:
+            for i in self.running:
+                f.write(f"{i.public_ip}\n")
 
     def wait_for_startup(self, what=None):
         what = self if what is None else self.lookup(what)
@@ -714,10 +731,14 @@ if __name__ == '__main__':
     # print(op.ssm_clients['us-east-1'].send_command(InstanceIds=['i-0945ba88c51f82960'],
     #                                                DocumentName="AWS-RunShellScript", Parameters={'commands': ['echo hello']}))
 
-    # for (extension, committee_size, minerblocksize) in cs:
-    #   op.run_benchmark(extension, committee_size, latency, minerblocksize, block_interval, epoch_size); time.sleep(2*60); op.collect_logs(extension, committee_size, latency, minerblocksize, block_interval, epoch_size)
-    # op.stop_benchmark()
-    # op.clean(blocking=True)
+    for (extension, committee_size, minerblocksize) in cs:
+        op.run_benchmark(extension, committee_size, latency,
+                         minerblocksize, block_interval, epoch_size)
+        time.sleep(2*60)
+        op.collect_logs(extension, committee_size, latency,
+                        minerblocksize, block_interval, epoch_size)
+        op.stop_benchmark()
+        op.clean(blocking=True)
 
     # instances.stop()
     # instances.terminate()
